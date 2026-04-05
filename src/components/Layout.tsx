@@ -11,25 +11,23 @@ import { useToast } from '@/hooks/use-toast'
 import { AppModule } from '@/types'
 
 export default function Layout() {
-  const { isAuthenticated, needsOnboarding, userId, logout } = useAuthStore()
+  const { isAuthenticated, needsOnboarding, loading, logout } = useAuthStore()
   const { db } = useDataStore()
   const location = useLocation()
   const { can } = usePermissions()
   const { toast } = useToast()
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      const currentUser = db.users.find((u) => u.id === userId)
-      if (currentUser && currentUser.isActive === false) {
-        toast({
-          title: 'Sessão Encerrada',
-          description: 'Sua conta foi desativada pelo administrador. Por favor, contate o suporte.',
-          variant: 'destructive',
-        })
-        logout()
-      }
-    }
-  }, [db.users, userId, isAuthenticated, logout, toast])
+  // Enquanto carrega a sessão do Supabase, mostra loading
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
