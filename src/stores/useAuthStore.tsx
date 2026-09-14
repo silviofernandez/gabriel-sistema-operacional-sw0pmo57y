@@ -46,6 +46,7 @@ interface AuthState {
   setProfileLevel: (level: UserProfileLevel) => void
   user: UserData
   session: AuthSession | null
+  switchUser: (userId: string) => void
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
@@ -245,6 +246,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfileLevelState(l)
   }, [])
 
+  const switchUser = useCallback((targetUserId: string) => {
+    const foundMock = db.users.find((u) => u.id === targetUserId)
+    if (foundMock) {
+      const userObj: UserData = {
+        id: foundMock.id,
+        name: foundMock.name,
+        email: foundMock.email,
+        avatar: foundMock.avatar || '',
+      }
+      setSession({
+        user: { id: foundMock.id, email: foundMock.email },
+        token: 'mock-session-token',
+      })
+      setUsuarioId(foundMock.id)
+      setRoleState((foundMock.role as UserRole) || 'Colaborador')
+      setProfileLevelState((foundMock.profileLevel as UserProfileLevel) || 'Colaborador')
+      setUserData(userObj)
+      setNeedsOnboarding(false)
+    }
+  }, [])
+
   const isAuthenticated = !!session
 
   const value = useMemo<AuthState>(
@@ -265,6 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfileLevel,
       user: userData,
       session,
+      switchUser,
     }),
     [
       isAuthenticated,
@@ -283,6 +306,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       profileLevel,
       setProfileLevel,
       session,
+      switchUser,
     ],
   )
 

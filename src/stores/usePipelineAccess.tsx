@@ -66,6 +66,19 @@ interface PipelineAccessState {
   notifications: NotificationItem[]
   refreshNotifications: () => Promise<void>
 
+  // Tarefas & OS definidas pelo Master
+  tarefas: import('@/types/pipeline').TarefaOrdemItem[]
+  addTarefa: (
+    tarefa: Omit<import('@/types/pipeline').TarefaOrdemItem, 'id' | 'created' | 'updated'>,
+  ) => Promise<boolean>
+  updateTarefaStatus: (
+    id: string,
+    status: 'Pendente' | 'Em Andamento' | 'Concluída' | 'Atrasada',
+    motivo?: string,
+  ) => Promise<boolean>
+  removeTarefa: (id: string) => Promise<boolean>
+  refreshTarefas: () => Promise<void>
+
   // Modal de Acesso Restrito
   restrictedModalState: {
     isOpen: boolean
@@ -89,6 +102,7 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
   const [metrics, setMetrics] = useState<DailyMetricItem[]>([])
   const [formalRecords, setFormalRecords] = useState<FormalRecordItem[]>([])
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [tarefas, setTarefas] = useState<import('@/types/pipeline').TarefaOrdemItem[]>([])
 
   const [restrictedModalState, setRestrictedModalState] = useState<{
     isOpen: boolean
@@ -103,13 +117,14 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
   // Carregar dados iniciais
   const refreshAll = useCallback(async () => {
     try {
-      const [p, c, l, m, f, n] = await Promise.all([
+      const [p, c, l, m, f, n, t] = await Promise.all([
         pipelineService.fetchStagePermissions(),
         pipelineService.fetchCoverages(),
         pipelineService.fetchAuditLogs('', '-created', 150),
         pipelineService.fetchDailyMetrics(),
         pipelineService.fetchFormalRecords(),
         pipelineService.fetchNotifications(),
+        pipelineService.fetchTarefas(),
       ])
       setPermissions(p)
       setCoverages(c)
@@ -117,14 +132,20 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
       setMetrics(m)
       setFormalRecords(f)
       setNotifications(n)
+      setTarefas(t)
     } catch (err) {
       console.warn('Erro ao carregar dados do pipeline:', err)
     }
   }, [])
 
+  const refreshTarefas = useCallback(async () => {
+    const t = await pipelineService.fetchTarefas()
+    setTarefas(t)
+  }, [])
+
   useEffect(() => {
     refreshAll()
-  }, [refreshAll])
+  }, [refreshAll, user.id])
 
   const refreshLogs = useCallback(async () => {
     const l = await pipelineService.fetchAuditLogs('', '-created', 150)
@@ -145,10 +166,15 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
     setNotifications(n)
   }, [])
 
-  // Identificar etapas do usuário logado
+  // Identificar se o usuário é Master / Administrador / Gestor com acesso total
   const isManagerOrAdmin = useMemo(() => {
-    return role === 'Administrador' || profileLevel === 'Diretor' || profileLevel === 'Gestor'
-  }, [role, profileLevel])
+    return (
+      user.id === 'u1' ||
+      role === 'Administrador' ||
+      profileLevel === 'Diretor' ||
+      profileLevel === 'Gestor'
+    )
+  }, [user.id, role, profileLevel])
 
   const assignedStageIds = useMemo(() => {
     if (isManagerOrAdmin) {
@@ -294,24 +320,147 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
     [user.id, user.name, assignedStageIds],
   )
 
-  // Adicionar permissão
-  const addPermission = useCallback(async (perm: Omit<StagePermissionItem, 'id'>) => {
-    const created = await pipelineService.addStagePermission(perm)
-    if (created) {
-      setPermissions((prev) => [...prev, created])
-      return true
-    }
-    return false
-  }, [])
+  // Adicionar permissão (Master concede livremente)
+  const addPermission = useCallback(
+    async (perm: Omit<StagePermissionItem, 'id'>) => {
+      const permWithAuthor = {
+        ...perm,
+        autorizado_por: user.name || 'Carlos Silva (Master)',
+      }
+      const created = await pipelineService.addStagePermission(permWithAuthor)
+      if (created) {
+        setPermissions((prev) => [...prev, created])
+        // Registrar concessão de permissão no log_auditoria
+        await logAuditAction({
+          acao: 'acessou_com_permissao_extra',
+          etapaId: perm.etapa_id,
+          motivo: `Master atribuiu permissão [${perm.tipo}] para etapa ${perm.etapa_id} ao colaborador ${perm.colaborador_id}`,
+          autorizadoPor: user.name || 'Carlos Silva (Master)',
+          dadosDepois: { ...permWithAuthor },
+        })
+        return true
+      }
+      return false
+    },
+    [user.name, logAuditAction],
+  )
 
-  const removePermission = useCallback(async (id: string) => {
-    const success = await pipelineService.removeStagePermission(id)
-    if (success) {
-      setPermissions((prev) => prev.filter((p) => p.id !== id))
-      return true
-    }
-    return false
-  }, [])
+  const removePermission = useCallback(
+    async (id: string) => {
+      const perm = permissions.find((p) => p.id === id)
+      const success = await pipelineService.removeStagePermission(id)
+      if (success) {
+        setPermissions((prev) => prev.filter((p) => p.id !== id))
+        // Registrar remoção de permissão no log_auditoria
+        if (perm) {
+          await logAuditAction({
+            acao: 'editou',
+            etapaId: perm.etapa_id,
+            motivo: `Master revogou permissão [${perm.tipo}] da etapa ${perm.etapa_id} do colaborador ${perm.colaborador_id}`,
+            autorizadoPor: user.name || 'Carlos Silva (Master)',
+            dadosAntes: { ...perm },
+          })
+        }
+        return true
+      }
+      return false
+    },
+    [permissions, user.name, logAuditAction],
+  )
+
+  // Ações de Tarefa & OS com log_auditoria
+  const addTarefa = useCallback(
+    async (
+      tarefaData: Omit<import('@/types/pipeline').TarefaOrdemItem, 'id' | 'created' | 'updated'>,
+    ) => {
+      const created = await pipelineService.createTarefa({
+        ...tarefaData,
+        criado_por: user.name || 'Carlos Silva (Master)',
+      })
+      if (created) {
+        setTarefas((prev) => [created, ...prev])
+        // Registrar criação de tarefa no log_auditoria
+        await logAuditAction({
+          acao: 'criou_tarefa',
+          etapaId: created.etapa_id,
+          contratoId: created.contrato_id,
+          motivo: `Master atribuiu nova tarefa "${created.titulo}" para ${created.responsavel_nome || created.responsavel_id}`,
+          autorizadoPor: user.name || 'Carlos Silva (Master)',
+          dadosDepois: {
+            id: created.id,
+            titulo: created.titulo,
+            responsavel: created.responsavel_nome,
+            etapa: created.etapa_id,
+            prioridade: created.prioridade,
+          },
+        })
+        return true
+      }
+      return false
+    },
+    [user.name, logAuditAction],
+  )
+
+  const updateTarefaStatus = useCallback(
+    async (
+      id: string,
+      newStatus: 'Pendente' | 'Em Andamento' | 'Concluída' | 'Atrasada',
+      motivo?: string,
+    ) => {
+      const current = tarefas.find((t) => t.id === id)
+      const updated = await pipelineService.updateTarefa(id, { status: newStatus })
+      if (updated) {
+        setTarefas((prev) => prev.map((t) => (t.id === id ? updated : t)))
+        const isCurrentCompleted = current?.status === 'Concluída'
+        const actionType: AuditActionType =
+          newStatus === 'Concluída'
+            ? 'concluiu_tarefa'
+            : isCurrentCompleted
+              ? 'reabriu_tarefa'
+              : 'editou'
+
+        await logAuditAction({
+          acao: actionType,
+          etapaId: updated.etapa_id,
+          contratoId: updated.contrato_id,
+          motivo:
+            motivo ||
+            (actionType === 'concluiu_tarefa'
+              ? `Tarefa "${updated.titulo}" concluída`
+              : actionType === 'reabriu_tarefa'
+                ? `Tarefa "${updated.titulo}" reaberta`
+                : `Status da tarefa alterado para ${newStatus}`),
+          dadosAntes: { status: current?.status },
+          dadosDepois: { status: newStatus },
+        })
+        return true
+      }
+      return false
+    },
+    [tarefas, logAuditAction],
+  )
+
+  const removeTarefa = useCallback(
+    async (id: string) => {
+      const current = tarefas.find((t) => t.id === id)
+      const success = await pipelineService.deleteTarefa(id)
+      if (success) {
+        setTarefas((prev) => prev.filter((t) => t.id !== id))
+        if (current) {
+          await logAuditAction({
+            acao: 'editou',
+            etapaId: current.etapa_id,
+            contratoId: current.contrato_id,
+            motivo: `Tarefa "${current.titulo}" excluída por ${user.name}`,
+            dadosAntes: { titulo: current.titulo, responsavel: current.responsavel_nome },
+          })
+        }
+        return true
+      }
+      return false
+    },
+    [tarefas, user.name, logAuditAction],
+  )
 
   // Fluxo de Cobertura de Ausência Completo
   const startCoverage = useCallback(
@@ -575,6 +724,11 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
       refreshMetrics,
       notifications,
       refreshNotifications,
+      tarefas,
+      addTarefa,
+      updateTarefaStatus,
+      removeTarefa,
+      refreshTarefas,
       restrictedModalState,
       openRestrictedModal,
       closeRestrictedModal,
@@ -604,6 +758,11 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
       refreshMetrics,
       notifications,
       refreshNotifications,
+      tarefas,
+      addTarefa,
+      updateTarefaStatus,
+      removeTarefa,
+      refreshTarefas,
       restrictedModalState,
       openRestrictedModal,
       closeRestrictedModal,

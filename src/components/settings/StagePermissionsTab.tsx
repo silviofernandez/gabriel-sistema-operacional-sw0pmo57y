@@ -54,10 +54,13 @@ export function StagePermissionsTab() {
   const { db } = useDataStore()
   const { toast } = useToast()
 
-  // Modal: Nova Permissão Permanente
+  // Modal: Conceder Permissão Livre pelo Master
   const [isPermModalOpen, setIsPermModalOpen] = useState(false)
   const [permColaboradorId, setPermColaboradorId] = useState('u4')
   const [permEtapaId, setPermEtapaId] = useState('4')
+  const [permTipo, setPermTipo] = useState<'permanente' | 'temporaria'>('permanente')
+  const [permMotivo, setPermMotivo] = useState('Atribuição definida pelo Master')
+  const [permDataFim, setPermDataFim] = useState('')
 
   // Modal: Fluxo de Cobertura de Ausência
   const [isCoverageModalOpen, setIsCoverageModalOpen] = useState(false)
@@ -108,22 +111,35 @@ export function StagePermissionsTab() {
     return Array.from(map.values())
   }, [permissions])
 
-  const handleAddPermanent = async () => {
+  const handleAddPermission = async () => {
+    const colab = db.users.find((u) => u.id === permColaboradorId)
+    const stage = stages.find((s) => s.id === permEtapaId)
     const ok = await addPermission({
       colaborador_id: permColaboradorId,
       etapa_id: permEtapaId,
-      tipo: 'permanente',
+      tipo: permTipo,
       data_inicio: new Date().toISOString().slice(0, 10),
-      motivo: 'Atribuição permanente de esteira',
-      autorizado_por: 'Carlos Silva (Gestor)',
+      data_fim: permTipo === 'temporaria' ? permDataFim : undefined,
+      motivo: permMotivo || `Permissão ${permTipo} concedida pelo Master`,
+      autorizado_por: 'Carlos Silva (Master)',
       is_active: true,
     })
     if (ok) {
       toast({
-        title: 'Permissão Atribuída',
-        description: 'Etapa vinculada ao colaborador com sucesso.',
+        title: 'Permissão Concedida pelo Master',
+        description: `Etapa "${stage?.shortName || permEtapaId}" liberada para ${colab?.name || permColaboradorId}. Registrado na auditoria.`,
       })
       setIsPermModalOpen(false)
+    }
+  }
+
+  const handleRemovePermission = async (id: string, colabNome: string, stageName: string) => {
+    const ok = await removePermission(id)
+    if (ok) {
+      toast({
+        title: 'Permissão Revogada',
+        description: `Acesso de ${colabNome} à etapa "${stageName}" foi revogado e registrado na auditoria.`,
+      })
     }
   }
 
@@ -261,21 +277,21 @@ export function StagePermissionsTab() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="text-base font-semibold flex items-center gap-2 text-foreground">
-              <ShieldAlert className="w-5 h-5 text-primary" /> Atribuição Permanente por Etapa da
-              Esteira
+              <ShieldAlert className="w-5 h-5 text-primary" /> Atribuições Livres pelo Master (Quem
+              Vê e Faz o Quê no Funil)
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Cada colaborador opera estritamente suas etapas atribuídas. O sistema bloqueia ações
-              fora deste escopo.
+              O Master pode conceder a qualquer colaborador acesso a quantas etapas quiser
+              (permanentes ou temporárias), sem restrição. Tudo registrado na auditoria com
+              autorizado_por = Master.
             </p>
           </div>
           <Button
             size="sm"
-            variant="outline"
             onClick={() => setIsPermModalOpen(true)}
-            className="gap-1.5 shadow-sm"
+            className="gap-1.5 shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground"
           >
-            <Plus className="w-4 h-4" /> Adicionar Etapa Permanente
+            <Plus className="w-4 h-4" /> Conceder Nova Permissão
           </Button>
         </div>
 
@@ -284,7 +300,7 @@ export function StagePermissionsTab() {
             <TableHeader className="bg-muted/40">
               <TableRow className="text-xs">
                 <TableHead>Colaborador</TableHead>
-                <TableHead>Etapas Permanentes da Esteira</TableHead>
+                <TableHead>Etapas Concedidas pelo Master</TableHead>
                 <TableHead>Perfil Funcional</TableHead>
                 <TableHead className="text-right">Total Etapas</TableHead>
               </TableRow>
@@ -303,13 +319,34 @@ export function StagePermissionsTab() {
                       <div className="flex flex-wrap gap-1.5">
                         {g.etapas.map((eid) => {
                           const stg = stages.find((s) => s.id === eid)
+                          const permRec = permissions.find(
+                            (p) => p.colaborador_id === g.colabId && p.etapa_id === eid,
+                          )
                           return (
                             <Badge
                               key={eid}
                               variant="outline"
-                              className="text-[11px] bg-muted/30 border-primary/20 text-foreground py-0.5"
+                              className="text-[11px] bg-muted/30 border-primary/20 text-foreground py-0.5 flex items-center gap-1"
                             >
-                              [{eid}. {stg?.shortName || `Etapa ${eid}`}]
+                              <span>
+                                [{eid}. {stg?.shortName || `Etapa ${eid}`}]
+                              </span>
+                              {permRec && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRemovePermission(
+                                      permRec.id,
+                                      g.colabNome,
+                                      stg?.shortName || eid,
+                                    )
+                                  }
+                                  className="ml-1 hover:text-destructive text-muted-foreground font-bold"
+                                  title="Revogar etapa"
+                                >
+                                  ×
+                                </button>
+                              )}
                             </Badge>
                           )
                         })}
@@ -452,37 +489,37 @@ export function StagePermissionsTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Nova Permissão Permanente */}
+      {/* Modal: Conceder Permissão Livre pelo Master */}
       <Dialog open={isPermModalOpen} onOpenChange={setIsPermModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold">
-              Atribuir Etapa Permanente da Esteira
+              Conceder Permissão de Etapa (Master)
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Vincule permanentemente uma etapa a um colaborador.
+              O Master pode definir livremente quem vai ver e operar cada etapa da esteira.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-xs">
             <div className="space-y-1">
-              <label className="font-medium">Colaborador</label>
+              <label className="font-medium text-foreground">Colaborador</label>
               <Select value={permColaboradorId} onValueChange={setPermColaboradorId}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="u4">Alice Santos</SelectItem>
-                  <SelectItem value="u3">João Paulo</SelectItem>
-                  <SelectItem value="u6">Camila Torres</SelectItem>
-                  <SelectItem value="u5">Ricardo Mendes</SelectItem>
-                  <SelectItem value="u2">Marina Costa</SelectItem>
+                  <SelectItem value="u4">Alice Santos (Vistoria)</SelectItem>
+                  <SelectItem value="u3">João Paulo (Captação / Docs)</SelectItem>
+                  <SelectItem value="u6">Camila Torres (Concierge)</SelectItem>
+                  <SelectItem value="u5">Ricardo Mendes (Financeiro)</SelectItem>
+                  <SelectItem value="u2">Marina Costa (Formalização)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1">
-              <label className="font-medium">Etapa da Esteira</label>
+              <label className="font-medium text-foreground">Etapa da Esteira (Funil)</label>
               <Select value={permEtapaId} onValueChange={setPermEtapaId}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
@@ -496,14 +533,55 @@ export function StagePermissionsTab() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-medium text-foreground">Tipo de Permissão</label>
+                <Select value={permTipo} onValueChange={(val: any) => setPermTipo(val)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="permanente">Permanente</SelectItem>
+                    <SelectItem value="temporaria">Temporária</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {permTipo === 'temporaria' && (
+                <div className="space-y-1">
+                  <label className="font-medium text-foreground">Data Fim / Retorno</label>
+                  <Input
+                    type="date"
+                    value={permDataFim}
+                    onChange={(e) => setPermDataFim(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-medium text-foreground">Motivo / Justificativa</label>
+              <Input
+                value={permMotivo}
+                onChange={(e) => setPermMotivo(e.target.value)}
+                placeholder="Ex: Ampliação de escopo para vistorias no setor Leste"
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="text-[11px] text-muted-foreground bg-muted/40 p-2 rounded">
+              Autorizado por: <strong>Carlos Silva (Master)</strong> — ação registrada imutavelmente
+              na Trilha de Auditoria.
+            </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIsPermModalOpen(false)}>
               Cancelar
             </Button>
-            <Button size="sm" onClick={handleAddPermanent}>
-              Salvar Atribuição
+            <Button size="sm" onClick={handleAddPermission}>
+              Conceder Permissão
             </Button>
           </DialogFooter>
         </DialogContent>

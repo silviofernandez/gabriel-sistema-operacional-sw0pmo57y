@@ -21,8 +21,12 @@ import { cn } from '@/lib/utils'
 
 export default function MeuDia() {
   const { user } = useAuthStore()
-  const { metrics, myActiveCoverage, temporaryStageIds, stages } = usePipelineAccess()
+  const { metrics, myActiveCoverage, temporaryStageIds, stages, tarefas, updateTarefaStatus } =
+    usePipelineAccess()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [selectedOrdem, setSelectedOrdem] = useState<
+    import('@/types/pipeline').TarefaOrdemItem | null
+  >(null)
 
   // Métricas do usuário logado
   const myMetric = useMemo(() => {
@@ -45,7 +49,14 @@ export default function MeuDia() {
       .join(', ')
   }, [stages, temporaryStageIds])
 
-  const myTasks = useMemo(
+  // Tarefas da coleção tarefas_ordens (atribuídas pelo Master) exclusivamente para o colaborador logado
+  const myOrdens = useMemo(
+    () => tarefas.filter((t) => t.responsavel_id === user?.id),
+    [tarefas, user?.id],
+  )
+
+  // Tarefas locais mockadas (fallback sincronizado com o ID do usuário logado)
+  const myMockTasks = useMemo(
     () => db.tasks.filter((t) => (t.assigneeIds || []).includes(user?.id || '')),
     [user?.id],
   )
@@ -62,19 +73,21 @@ export default function MeuDia() {
   }
   const todayTime = parseDate(todayStr)
 
-  const overdueTasks = myTasks.filter(
-    (t) =>
-      t.status !== 'Concluída' && (t.status === 'Atrasada' || parseDate(t.deadline) < todayTime),
-  )
-  const todayTasks = myTasks.filter(
+  // Separação das ordens do backend
+  const overdueOrdens = myOrdens.filter(
     (t) =>
       t.status !== 'Concluída' &&
-      (t.deadline || '').startsWith(todayStr) &&
-      !overdueTasks.includes(t),
+      (t.status === 'Atrasada' || (t.prazo && parseDate(t.prazo) < todayTime)),
   )
-  const inProgressTasks = myTasks.filter(
-    (t) => t.status === 'Em Andamento' && !overdueTasks.includes(t) && !todayTasks.includes(t),
+  const todayOrdens = myOrdens.filter(
+    (t) =>
+      t.status !== 'Concluída' &&
+      !overdueOrdens.includes(t) &&
+      ((t.prazo || '').includes(todayStr) ||
+        t.status === 'Em Andamento' ||
+        t.status === 'Pendente'),
   )
+  const completedOrdens = myOrdens.filter((t) => t.status === 'Concluída')
 
   const TaskCard = ({
     task,
@@ -280,52 +293,143 @@ export default function MeuDia() {
       </div>
 
       <div className="space-y-8">
-        {overdueTasks.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2 text-destructive">
-              <AlertCircle className="w-5 h-5" /> Tarefas em Atraso
-              <Badge variant="destructive" className="ml-2 rounded-full">
-                {overdueTasks.length}
+        {/* Bloco 1: Ordens e Tarefas atribuídas pelo Master diretamente a este colaborador */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2 text-foreground">
+              <Clock className="w-5 h-5 text-primary" /> Minhas Tarefas de Hoje ({user?.name})
+              <Badge
+                variant="outline"
+                className="ml-1 bg-primary/10 text-primary border-primary/20"
+              >
+                {myOrdens.length} atribuída{myOrdens.length > 1 ? 's' : ''} pelo Master
               </Badge>
             </h2>
-            <div className="grid gap-3">
-              {overdueTasks.map((task) => (
-                <TaskCard key={task.id} task={task} variant="overdue" />
-              ))}
-            </div>
-          </section>
-        )}
+            <span className="text-xs text-muted-foreground">
+              Apenas as tarefas atribuídas a você são visíveis
+            </span>
+          </div>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2 text-foreground">
-            <Clock className="w-5 h-5 text-warning" /> Tarefas do Dia ({todayStr})
-            <Badge variant="secondary" className="ml-2 rounded-full bg-muted text-muted-foreground">
-              {todayTasks.length}
-            </Badge>
-          </h2>
-          {todayTasks.length > 0 ? (
+          {myOrdens.length > 0 ? (
             <div className="grid gap-3">
-              {todayTasks.map((task) => (
-                <TaskCard key={task.id} task={task} variant="today" />
-              ))}
+              {myOrdens.map((ordem) => {
+                const stageObj = stages.find((s) => s.id === ordem.etapa_id)
+                const isConcluida = ordem.status === 'Concluída'
+                const isAtrasada = ordem.status === 'Atrasada'
+
+                return (
+                  <Card
+                    key={ordem.id}
+                    className={cn(
+                      'p-4 border-l-4 transition-all hover:shadow-sm bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4',
+                      isConcluida
+                        ? 'border-l-emerald-500 bg-muted/10 opacity-80'
+                        : isAtrasada
+                          ? 'border-l-destructive bg-destructive/5'
+                          : 'border-l-primary',
+                    )}
+                  >
+                    <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateTarefaStatus(
+                            ordem.id,
+                            isConcluida ? 'Em Andamento' : 'Concluída',
+                            isConcluida
+                              ? `Colaborador ${user?.name} reabriu a tarefa`
+                              : `Colaborador ${user?.name} concluiu a tarefa com sucesso`,
+                          )
+                        }
+                        className={cn(
+                          'mt-1 sm:mt-0 p-1.5 rounded-full transition-colors border',
+                          isConcluida
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'border-muted-foreground/30 hover:border-primary text-muted-foreground hover:text-primary',
+                        )}
+                        title={isConcluida ? 'Clique para reabrir tarefa' : 'Marcar como concluída'}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                      </button>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3
+                            className={cn(
+                              'font-semibold text-base text-foreground truncate',
+                              isConcluida && 'line-through text-muted-foreground',
+                            )}
+                          >
+                            {ordem.titulo}
+                          </h3>
+                          {ordem.ai_risk_flag && (
+                            <Badge variant="destructive" className="text-[10px] uppercase">
+                              <AlertTriangle className="w-3 h-3 mr-1" /> Risco
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-[11px] bg-background">
+                            [{ordem.etapa_id}. {stageObj?.shortName || `Etapa ${ordem.etapa_id}`}]
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                          {ordem.descricao || ordem.imovel_titulo || 'Sem observações'}
+                        </p>
+                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1">
+                          <span>Criado por: {ordem.criado_por || 'Master'}</span>
+                          {ordem.contrato_id && <span>Contrato: {ordem.contrato_id}</span>}
+                          {ordem.prazo && <span>Prazo: {ordem.prazo}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      <Badge
+                        variant={
+                          ordem.prioridade === 'Crítica' || ordem.prioridade === 'Alta'
+                            ? 'destructive'
+                            : ordem.prioridade === 'Média'
+                              ? 'warning'
+                              : 'secondary'
+                        }
+                        className="text-xs"
+                      >
+                        {ordem.prioridade}
+                      </Badge>
+                      <Badge
+                        className={cn(
+                          'text-xs font-semibold',
+                          ordem.status === 'Concluída'
+                            ? 'bg-emerald-600 text-white'
+                            : ordem.status === 'Atrasada'
+                              ? 'bg-destructive text-destructive-foreground'
+                              : ordem.status === 'Em Andamento'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {ordem.status}
+                      </Badge>
+                    </div>
+                  </Card>
+                )
+              })}
             </div>
           ) : (
-            <div className="text-center p-8 border border-dashed rounded-xl bg-card text-muted-foreground shadow-sm">
-              Nenhuma tarefa urgente para hoje. Bom trabalho!
+            <div className="text-center p-8 border border-dashed rounded-xl bg-card text-muted-foreground shadow-sm text-sm">
+              Nenhuma tarefa atribuída a você no momento. Aguarde designações do Master no funil.
             </div>
           )}
         </section>
 
-        {inProgressTasks.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2 text-primary">
-              <PlayCircle className="w-5 h-5" /> Tarefas em Andamento
-              <Badge variant="default" className="ml-2 rounded-full">
-                {inProgressTasks.length}
-              </Badge>
+        {/* Bloco 2: Tarefas Operacionais Adicionais */}
+        {myMockTasks.length > 0 && (
+          <section className="space-y-4 pt-4 border-t">
+            <h2 className="text-base font-semibold flex items-center gap-2 text-muted-foreground">
+              <PlayCircle className="w-4 h-4 text-primary" /> Outras Demandas Atribuídas (
+              {myMockTasks.length})
             </h2>
             <div className="grid gap-3">
-              {inProgressTasks.map((task) => (
+              {myMockTasks.map((task) => (
                 <TaskCard key={task.id} task={task} variant="progress" />
               ))}
             </div>

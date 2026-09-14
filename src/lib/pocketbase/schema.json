@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T22:54:28.507Z",
+  "generatedAt": "2026-09-14T23:06:59.018Z",
   "collections": [
     {
       "name": "users",
@@ -647,6 +647,143 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_notif_dest ON notificacoes (destinatario_id, status)"]
+    },
+    {
+      "name": "tarefas_ordens",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsavel_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "etapa_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "contrato_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imovel_titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prioridade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Baixa", "Média", "Alta", "Crítica"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Pendente", "Em Andamento", "Concluída", "Atrasada"]
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Operacional",
+            "Concierge",
+            "Demanda",
+            "Manutenção",
+            "Vistoria",
+            "Administrativo"
+          ]
+        },
+        {
+          "name": "prazo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sla_horas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_urgency",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_risk_flag",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "checklists",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_tarefas_resp ON tarefas_ordens (responsavel_id, status)",
+        "CREATE INDEX idx_tarefas_etapa ON tarefas_ordens (etapa_id)"
+      ]
     }
   ]
 }

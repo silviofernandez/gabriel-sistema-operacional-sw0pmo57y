@@ -30,7 +30,7 @@ import usePipelineAccess from '@/stores/usePipelineAccess'
 import { Badge } from '@/components/ui/badge'
 
 export function AppHeader() {
-  const { user, profileLevel, setProfileLevel, logout } = useAuthStore()
+  const { user, profileLevel, setProfileLevel, logout, switchUser } = useAuthStore()
   const { db } = useDataStore()
   const { stages, assignedStageIds, temporaryStageIds, myActiveCoverage, notifications } =
     usePipelineAccess()
@@ -255,6 +255,49 @@ export function AppHeader() {
                     {level}
                   </DropdownMenuItem>
                 ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-primary font-medium">
+                Alternar Usuário (Governança)
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-56">
+                <DropdownMenuItem
+                  onClick={() => switchUser('u1')}
+                  className={user.id === 'u1' ? 'font-bold text-primary' : ''}
+                >
+                  Carlos Silva (Master / Gestor)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => switchUser('u4')}
+                  className={user.id === 'u4' ? 'font-bold text-primary' : ''}
+                >
+                  Alice Santos (Vistoria)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => switchUser('u3')}
+                  className={user.id === 'u3' ? 'font-bold text-primary' : ''}
+                >
+                  João Paulo (Captação / Docs)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => switchUser('u6')}
+                  className={user.id === 'u6' ? 'font-bold text-primary' : ''}
+                >
+                  Camila Torres (Concierge)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => switchUser('u5')}
+                  className={user.id === 'u5' ? 'font-bold text-primary' : ''}
+                >
+                  Ricardo Mendes (Financeiro)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => switchUser('u2')}
+                  className={user.id === 'u2' ? 'font-bold text-primary' : ''}
+                >
+                  Marina Costa (Gestor)
+                </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuSeparator />

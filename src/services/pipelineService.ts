@@ -204,6 +204,71 @@ export const pipelineService = {
       return null
     }
   },
+
+  // 7. Tarefas / Ordens de Serviço (Definidas pelo Master)
+  async fetchTarefas(
+    responsavelId?: string,
+    etapaId?: string,
+  ): Promise<import('@/types/pipeline').TarefaOrdemItem[]> {
+    try {
+      const filters: string[] = []
+      if (responsavelId) filters.push(`responsavel_id = '${responsavelId}'`)
+      if (etapaId) filters.push(`etapa_id = '${etapaId}'`)
+      const filter = filters.join(' && ')
+      const records = await pb
+        .collection('tarefas_ordens')
+        .getFullList<import('@/types/pipeline').TarefaOrdemItem>({
+          filter,
+          sort: '-created',
+        })
+      return records
+    } catch (err) {
+      console.warn('Erro ao carregar tarefas_ordens:', err)
+      return []
+    }
+  },
+
+  async createTarefa(
+    data: Omit<import('@/types/pipeline').TarefaOrdemItem, 'id' | 'created' | 'updated'>,
+  ): Promise<import('@/types/pipeline').TarefaOrdemItem | null> {
+    try {
+      const record = await pb
+        .collection('tarefas_ordens')
+        .create<import('@/types/pipeline').TarefaOrdemItem>({
+          ...data,
+          status: data.status || 'Pendente',
+        })
+      return record
+    } catch (err) {
+      console.error('Erro ao criar tarefa_ordem:', err)
+      return null
+    }
+  },
+
+  async updateTarefa(
+    id: string,
+    updates: Partial<import('@/types/pipeline').TarefaOrdemItem>,
+  ): Promise<import('@/types/pipeline').TarefaOrdemItem | null> {
+    try {
+      const record = await pb
+        .collection('tarefas_ordens')
+        .update<import('@/types/pipeline').TarefaOrdemItem>(id, updates)
+      return record
+    } catch (err) {
+      console.error('Erro ao atualizar tarefa_ordem:', err)
+      return null
+    }
+  },
+
+  async deleteTarefa(id: string): Promise<boolean> {
+    try {
+      await pb.collection('tarefas_ordens').delete(id)
+      return true
+    } catch (err) {
+      console.error('Erro ao deletar tarefa_ordem:', err)
+      return false
+    }
+  },
 }
 
 export default pipelineService

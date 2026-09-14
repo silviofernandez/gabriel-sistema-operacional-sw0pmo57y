@@ -19,6 +19,7 @@ import { TaskHistoryTab } from './TaskHistoryTab'
 import { AIHandoverDialog } from '@/components/ai/AIHandoverDialog'
 import { TaskManagementComments } from './TaskManagementComments'
 import { usePermissions } from '@/hooks/usePermissions'
+import usePipelineAccess from '@/stores/usePipelineAccess'
 
 interface TaskDetailDialogProps {
   task: Task | null
@@ -33,6 +34,7 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
   const [showHandover, setShowHandover] = useState(false)
   const { toast } = useToast()
   const { can } = usePermissions()
+  const { logAuditAction } = usePipelineAccess()
 
   const canEditTask = can('tasks', 'edit') || can('kanban', 'edit')
 
@@ -207,10 +209,33 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
               </Button>
               {canEditTask && (
                 <Button
-                  onClick={() => {
+                  onClick={async () => {
+                    if (task) {
+                      const isCompleted = localStatus === 'Concluída'
+                      const wasCompleted = task.status === 'Concluída'
+                      task.status = localStatus
+
+                      await logAuditAction({
+                        acao: isCompleted
+                          ? 'concluiu_tarefa'
+                          : wasCompleted && !isCompleted
+                            ? 'reabriu_tarefa'
+                            : 'editou',
+                        contratoId: task.contractId,
+                        motivo: isCompleted
+                          ? `Tarefa "${task.title}" marcada como concluída pelo colaborador`
+                          : wasCompleted && !isCompleted
+                            ? `Tarefa "${task.title}" reaberta pelo colaborador`
+                            : `Tarefa "${task.title}" atualizada com status ${localStatus}`,
+                        dadosAntes: { status: task.status },
+                        dadosDepois: { status: localStatus },
+                      })
+                    }
+
                     toast({
                       title: 'Ação Registrada',
-                      description: 'As alterações na tarefa foram salvas.',
+                      description:
+                        'As alterações na tarefa foram salvas e registradas na trilha de auditoria.',
                     })
                     onOpenChange(false)
                   }}

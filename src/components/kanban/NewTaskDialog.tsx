@@ -102,7 +102,7 @@ export function NewTaskDialog({ open, onOpenChange, onSave }: NewTaskDialogProps
     })
   }
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!title || !propertyId || !type) return
     const finalDeadline = deadlineDate
       ? `${format(deadlineDate, 'dd/MM/yyyy')} ${deadlineTime}`
@@ -125,6 +125,25 @@ export function NewTaskDialog({ open, onOpenChange, onSave }: NewTaskDialogProps
       delayStatus: 'on-time',
     }
     onSave(newTask)
+
+    // Gravar no log_auditoria
+    try {
+      const { pipelineService } = await import('@/services/pipelineService')
+      const propObj = db.properties.find((p) => p.id === propertyId)
+      await pipelineService.logAction({
+        colaborador_id: user.id,
+        colaborador_nome: user.name,
+        acao_tipo: 'criou_tarefa',
+        etapa_id: '1',
+        contrato_id: propObj?.id,
+        motivo: `Tarefa "${title}" criada e vinculada a ${propObj?.title || 'imóvel'}`,
+        autorizado_por: user.name,
+        dados_depois: { title, priority, propertyId },
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      })
+    } catch {
+      /* intentionally ignored */
+    }
   }
 
   return (

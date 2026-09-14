@@ -233,3 +233,25 @@ export interface NotificationItem {
   metadata?: Record<string, unknown>
   created?: string
 }
+
+export interface TarefaOrdemItem {
+  id: string
+  titulo: string
+  descricao?: string
+  responsavel_id: string
+  responsavel_nome?: string
+  etapa_id: string
+  contrato_id?: string
+  imovel_titulo?: string
+  prioridade: 'Baixa' | 'Média' | 'Alta' | 'Crítica'
+  status: 'Pendente' | 'Em Andamento' | 'Concluída' | 'Atrasada'
+  tipo?: 'Operacional' | 'Concierge' | 'Demanda' | 'Manutenção' | 'Vistoria' | 'Administrativo'
+  prazo?: string
+  sla_horas?: number
+  criado_por?: string
+  ai_urgency?: string
+  ai_risk_flag?: boolean
+  checklists?: { id: string; text: string; done: boolean }[]
+  created?: string
+  updated?: string
+}

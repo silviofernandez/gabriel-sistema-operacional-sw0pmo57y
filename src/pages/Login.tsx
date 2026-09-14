@@ -99,7 +99,7 @@ export default function Login() {
               </div>
               <Input
                 type="password"
-                placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+                placeholder="••••••••"
                 className="h-12 bg-background"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -117,8 +117,41 @@ export default function Login() {
                 'Entrar na plataforma'
               )}
             </Button>
+
+            {/* Acesso rápido para simulação de governança */}
+            <div className="pt-4 border-t space-y-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block text-center">
+                Acesso Rápido de Demonstração
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-primary/30 text-primary font-medium"
+                  onClick={() => {
+                    setEmail('carlos@alugai.com.br')
+                    setPassword('123456')
+                  }}
+                >
+                  👑 Carlos (Master)
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    setEmail('alice@alugai.com.br')
+                    setPassword('123456')
+                  }}
+                >
+                  👤 Alice (Colaboradora)
+                </Button>
+              </div>
+            </div>
           </form>
-        </CardContent>
+        </CardContent>{' '}
       </Card>
       <div className="mt-8 text-center text-sm text-muted-foreground z-10">
         &copy; {new Date().getFullYear()} AlugAI SaaS. Todos os direitos reservados.
