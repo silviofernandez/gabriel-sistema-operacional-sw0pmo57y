@@ -165,7 +165,7 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
     // Fallback padrão baseado no role do mock
     if (role === 'Equipe de Vistoria' || user.id === 'u4') return ['4', '8']
     if (role === 'Equipe Financeira' || user.id === 'u5') return ['9', '12']
-    if (role === 'Concierge' || user.id === 'u6') return ['6', '7', '10']
+    if ((role as string) === 'Concierge' || user.id === 'u6') return ['6', '7', '10']
     if (user.id === 'u3') return ['1', '2', '3']
     return ['1', '2']
   }, [permissions, user.id, isManagerOrAdmin, role])
@@ -505,7 +505,7 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
           acao_tipo: 'editou',
           contrato_id: data.contrato_id,
           motivo: `Registro formal de ${data.tipo.toUpperCase()}: ${data.descricao.slice(0, 60)}...`,
-          dadosDepois: { tipo: data.tipo, impacto: data.impacto },
+          dados_depois: { tipo: data.tipo, impacto: data.impacto },
           timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
         })
 

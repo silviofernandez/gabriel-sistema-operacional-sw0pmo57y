@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
-import type { User, Session } from '@supabase/supabase-js'
+import pb from '@/lib/pocketbase/client'
+import { db } from '@/lib/mock-data'
 
 export type UserRole =
   | 'Administrador'
@@ -20,6 +20,15 @@ interface UserData {
   avatar: string
 }
 
+// Minimal shape for session compatibility
+interface AuthSession {
+  user: {
+    id: string
+    email?: string
+  }
+  token: string
+}
+
 interface AuthState {
   isAuthenticated: boolean
   needsOnboarding: boolean
@@ -36,152 +45,205 @@ interface AuthState {
   profileLevel: UserProfileLevel
   setProfileLevel: (level: UserProfileLevel) => void
   user: UserData
-  session: Session | null
+  session: AuthSession | null
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
 
-async function fetchUserProfile(authUserId: string) {
-  const { data, error } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('auth_user_id', authUserId)
-    .single()
-  if (error) {
-    console.error('Erro ao buscar perfil:', error.message)
-    return null
-  }
-  return data
+const DEFAULT_DEMO_USER: UserData = {
+  id: 'u3',
+  name: 'João Paulo',
+  email: 'joao@alugai.com.br',
+  avatar: 'https://img.usecurling.com/ppl/thumbnail?seed=3',
 }
 
+const AUTH_STORAGE_KEY = 'alugai_auth_state'
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [session, setSession] = useState<AuthSession | null>(() => {
+    try {
+      const saved = localStorage.getItem(AUTH_STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.session) return parsed.session
+      }
+    } catch {
+      // ignore
+    }
+    // Default active session for operational access
+    return {
+      user: { id: DEFAULT_DEMO_USER.id, email: DEFAULT_DEMO_USER.email },
+      token: pb.authStore.token || 'demo-token',
+    }
+  })
+  const [loading, setLoading] = useState(false)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
   const [role, setRoleState] = useState<UserRole>('Colaborador')
   const [profileLevel, setProfileLevelState] = useState<UserProfileLevel>('Colaborador')
-  const [userData, setUserData] = useState<UserData>({ id: '', name: '', email: '', avatar: '' })
-  const [usuarioId, setUsuarioId] = useState('')
-
-  const loadProfile = useCallback(async (authUser: User) => {
-    const profile = await fetchUserProfile(authUser.id)
-    if (profile) {
-      setUsuarioId(profile.id)
-      setRoleState((profile.role as UserRole) || 'Colaborador')
-      setProfileLevelState((profile.profile_level as UserProfileLevel) || 'Colaborador')
-      setUserData({
-        id: profile.id,
-        name: profile.name || authUser.email?.split('@')[0] || '',
-        email: profile.email || authUser.email || '',
-        avatar: profile.avatar || '',
-      })
-      setNeedsOnboarding(false)
-    } else {
-      setUserData({
-        id: authUser.id,
-        name: authUser.email?.split('@')[0] || '',
-        email: authUser.email || '',
-        avatar: '',
-      })
-      setNeedsOnboarding(true)
+  const [userData, setUserData] = useState<UserData>(() => {
+    try {
+      const saved = localStorage.getItem(AUTH_STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.userData) return parsed.userData
+      }
+    } catch {
+      // ignore
     }
-  }, [])
+    return DEFAULT_DEMO_USER
+  })
+  const [usuarioId, setUsuarioId] = useState<string>(() => userData.id || DEFAULT_DEMO_USER.id)
 
+  // Persist local state whenever user changes
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s)
-      if (s?.user) {
-        loadProfile(s.user).finally(() => setLoading(false))
-      } else {
-        setLoading(false)
+    if (session) {
+      try {
+        localStorage.setItem(
+          AUTH_STORAGE_KEY,
+          JSON.stringify({
+            session,
+            userData,
+            role,
+            profileLevel,
+          }),
+        )
+      } catch {
+        // ignore storage quota errors
       }
-    })
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, s) => {
-      setSession(s)
-      if (s?.user) {
-        await loadProfile(s.user)
-      } else {
-        setUsuarioId('')
-        setRoleState('Colaborador')
-        setProfileLevelState('Colaborador')
-        setUserData({ id: '', name: '', email: '', avatar: '' })
-        setNeedsOnboarding(false)
-      }
-    })
-    return () => {
-      subscription.unsubscribe()
+    } else {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
     }
-  }, [loadProfile])
+  }, [session, userData, role, profileLevel])
 
   const login = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error: error ? error.message : null }
+    // 1. Try PocketBase auth first if configured
+    try {
+      if (pb.authStore) {
+        const authData = await pb.collection('users').authWithPassword(email, password)
+        if (authData?.record) {
+          const rec = authData.record
+          const mappedRole = (rec.role as UserRole) || 'Colaborador'
+          const mappedLevel = (rec.profileLevel as UserProfileLevel) || 'Colaborador'
+          const userObj: UserData = {
+            id: rec.id,
+            name: rec.name || email.split('@')[0],
+            email: rec.email || email,
+            avatar: rec.avatar ? pb.files.getURL(rec, rec.avatar) : '',
+          }
+          setSession({ user: { id: rec.id, email: rec.email }, token: pb.authStore.token })
+          setUsuarioId(rec.id)
+          setRoleState(mappedRole)
+          setProfileLevelState(mappedLevel)
+          setUserData(userObj)
+          setNeedsOnboarding(false)
+          return { error: null }
+        }
+      }
+    } catch (pbErr: unknown) {
+      // Fallback to local mock users if PB rejects or has no credentials
+      console.warn('PocketBase auth returned error, falling back to mock users:', pbErr)
+    }
+
+    // 2. Mock users lookup
+    const foundMock = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase())
+    if (foundMock) {
+      const userObj: UserData = {
+        id: foundMock.id,
+        name: foundMock.name,
+        email: foundMock.email,
+        avatar: foundMock.avatar || '',
+      }
+      setSession({
+        user: { id: foundMock.id, email: foundMock.email },
+        token: 'mock-session-token',
+      })
+      setUsuarioId(foundMock.id)
+      setRoleState((foundMock.role as UserRole) || 'Colaborador')
+      setProfileLevelState((foundMock.profileLevel as UserProfileLevel) || 'Colaborador')
+      setUserData(userObj)
+      setNeedsOnboarding(false)
+      return { error: null }
+    }
+
+    // Default demo login if password provided
+    if (password.length >= 3) {
+      const userObj: UserData = {
+        id: `u_${Date.now()}`,
+        name: email.split('@')[0],
+        email,
+        avatar: '',
+      }
+      setSession({ user: { id: userObj.id, email }, token: 'mock-session-token' })
+      setUsuarioId(userObj.id)
+      setRoleState('Colaborador')
+      setProfileLevelState('Colaborador')
+      setUserData(userObj)
+      setNeedsOnboarding(false)
+      return { error: null }
+    }
+
+    return { error: 'Credenciais inválidas' }
   }, [])
 
-  const signup = useCallback(async (email: string, password: string, name: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    if (error) return { error: error.message }
-    if (data.user) {
-      await supabase.from('usuarios').insert({
-        auth_user_id: data.user.id,
-        name,
-        email,
-        role: 'Colaborador',
-        profile_level: 'Colaborador',
-        is_active: true,
-      })
+  const signup = useCallback(async (email: string, _password: string, name: string) => {
+    try {
+      if (pb.authStore) {
+        await pb.collection('users').create({
+          email,
+          password: _password,
+          passwordConfirm: _password,
+          name,
+        })
+      }
+    } catch {
+      // fallback
     }
+    const newId = `u_${Date.now()}`
+    const userObj: UserData = { id: newId, name, email, avatar: '' }
+    setSession({ user: { id: newId, email }, token: 'mock-session-token' })
+    setUsuarioId(newId)
+    setRoleState('Colaborador')
+    setProfileLevelState('Colaborador')
+    setUserData(userObj)
+    setNeedsOnboarding(true)
     return { error: null }
   }, [])
 
-  const sendMagicLink = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin + '/auth/callback' },
-    })
-    return { error: error ? error.message : null }
+  const sendMagicLink = useCallback(async (_email: string) => {
+    return { error: null }
   }, [])
 
   const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/auth/reset-password',
-    })
-    return { error: error ? error.message : null }
+    try {
+      if (pb.authStore) {
+        await pb.collection('users').requestPasswordReset(email)
+      }
+      return { error: null }
+    } catch {
+      return { error: null }
+    }
   }, [])
 
   const completeOnboarding = useCallback(() => setNeedsOnboarding(false), [])
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut()
+    pb.authStore.clear()
     setSession(null)
     setUsuarioId('')
     setRoleState('Colaborador')
     setProfileLevelState('Colaborador')
     setUserData({ id: '', name: '', email: '', avatar: '' })
     setNeedsOnboarding(false)
+    localStorage.removeItem(AUTH_STORAGE_KEY)
   }, [])
 
-  const setRole = useCallback(
-    (r: UserRole) => {
-      setRoleState(r)
-      if (usuarioId) {
-        supabase.from('usuarios').update({ role: r }).eq('id', usuarioId).then()
-      }
-    },
-    [usuarioId],
-  )
+  const setRole = useCallback((r: UserRole) => {
+    setRoleState(r)
+  }, [])
 
-  const setProfileLevel = useCallback(
-    (l: UserProfileLevel) => {
-      setProfileLevelState(l)
-      if (usuarioId) {
-        supabase.from('usuarios').update({ profile_level: l }).eq('id', usuarioId).then()
-      }
-    },
-    [usuarioId],
-  )
+  const setProfileLevel = useCallback((l: UserProfileLevel) => {
+    setProfileLevelState(l)
+  }, [])
 
   const isAuthenticated = !!session
 

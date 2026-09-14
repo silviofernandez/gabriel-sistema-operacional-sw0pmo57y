@@ -233,8 +233,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...record,
             etapa_atual: newStage,
             responsavel_atual: CONCIERGE_RESPONSIBILITY_MAP[newStage] || record.responsavel_atual,
-            status_cliente:
-              newStage === 'RISCO' ? 'risco' : newStage === 'NEGOCIACAO' ? 'renovacao' : 'ativo',
+            status_cliente: (newStage === 'RISCO'
+              ? 'risco'
+              : newStage === 'NEGOCIACAO'
+                ? 'renovacao'
+                : 'ativo') as 'ativo' | 'risco' | 'renovacao' | 'encerrado',
           }
         }
         return record
@@ -302,7 +305,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const breachedTasks = clientTasks.filter((t) => t.status === 'Atrasada')
       const urgentPendingTasks = clientTasks.filter(
-        (t) => (t.priority === 'Urgente' || t.priority === 'Alta') && t.status !== 'Concluída',
+        (t) => (t.priority === 'Crítica' || t.priority === 'Alta') && t.status !== 'Concluída',
       )
 
       if (breachedTasks.length > 0) score -= 55

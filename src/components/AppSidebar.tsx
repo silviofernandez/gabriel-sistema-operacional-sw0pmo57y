@@ -37,6 +37,16 @@ import usePipelineAccess from '@/stores/usePipelineAccess'
 import { usePermissions } from '@/hooks/usePermissions'
 import { AppModule } from '@/types'
 
+const routeModuleMap: Record<string, AppModule> = {
+  '/': 'dashboard',
+  '/imoveis': 'properties',
+  '/tarefas': 'tasks',
+  '/kanban': 'kanban',
+  '/financeiro': 'financial',
+  '/clientes': 'contacts',
+  '/concierge': 'concierge',
+}
+
 const navItems: {
   title: string
   url: string

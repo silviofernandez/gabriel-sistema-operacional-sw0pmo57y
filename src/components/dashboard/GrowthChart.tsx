@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { growthData } from '@/lib/mock-data'
+import { portfolioGrowthData as growthData } from '@/lib/mock-data'
 
 export function GrowthChart() {
   const chartConfig = useMemo(

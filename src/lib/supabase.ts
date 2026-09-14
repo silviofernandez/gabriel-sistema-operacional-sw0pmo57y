@@ -1,20 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl =
+  import.meta.env.VITE_SUPABASE_URL || 'https://placeholder-skip-cloud.supabase.co'
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Supabase env vars not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env',
-  )
-}
-
+// This project's active backend is Skip Cloud (PocketBase).
+// Keep supabase client non-throwing and safe for any legacy/dormant references.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false,
   },
 })
 

@@ -159,7 +159,7 @@ export default function MeuDia() {
             </Badge>
             <Badge
               variant={
-                task.priority === 'Urgente' || task.priority === 'Alta'
+                task.priority === 'Crítica' || task.priority === 'Alta'
                   ? 'destructive'
                   : task.priority === 'Média'
                     ? 'warning'

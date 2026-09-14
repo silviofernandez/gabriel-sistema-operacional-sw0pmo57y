@@ -169,10 +169,9 @@ export default function Concierge() {
                             {record.contrato_id}
                           </Badge>
                           {!canEdit && (
-                            <Lock
-                              className="w-3 h-3 text-muted-foreground"
-                              title="Somente Leitura"
-                            />
+                            <span title="Somente Leitura">
+                              <Lock className="w-3 h-3 text-muted-foreground" />
+                            </span>
                           )}
                         </div>
                         <h4

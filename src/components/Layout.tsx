@@ -17,7 +17,7 @@ export default function Layout() {
   const { can } = usePermissions()
   const { toast } = useToast()
 
-  // Enquanto carrega a sessão do Supabase, mostra loading
+  // Enquanto carrega a sessão de autenticação, mostra loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
