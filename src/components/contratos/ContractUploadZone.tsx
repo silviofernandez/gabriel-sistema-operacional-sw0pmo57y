@@ -161,9 +161,16 @@ Se não encontrar um campo, use null.`,
       {/* Drop zone */}
       <Card
         className={`border-2 border-dashed transition-colors cursor-pointer ${
-          arrastando ? 'border-primary bg-primary/5' : arquivo ? 'border-green-500 bg-green-500/5' : 'border-muted-foreground/25 hover:border-primary/50'
+          arrastando
+            ? 'border-primary bg-primary/5'
+            : arquivo
+              ? 'border-green-500 bg-green-500/5'
+              : 'border-muted-foreground/25 hover:border-primary/50'
         }`}
-        onDragOver={(e) => { e.preventDefault(); setArrastando(true) }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setArrastando(true)
+        }}
         onDragLeave={() => setArrastando(false)}
         onDrop={onDrop}
         onClick={() => fileRef.current?.click()}
@@ -196,12 +203,7 @@ Se não encontrar um campo, use null.`,
 
       {/* Botão IA */}
       {arquivo && !dadosExtraidos && (
-        <Button
-          onClick={extrairComIA}
-          disabled={extraindo}
-          className="w-full"
-          variant="outline"
-        >
+        <Button onClick={extrairComIA} disabled={extraindo} className="w-full" variant="outline">
           {extraindo ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Extraindo dados com IA...
@@ -248,7 +250,9 @@ Se não encontrar um campo, use null.`,
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Select value={form.tipo} onValueChange={(v) => updateField('tipo', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="locacao">Locação</SelectItem>
                   <SelectItem value="prestacao_servico">Prestação de Serviço</SelectItem>
@@ -259,10 +263,14 @@ Se não encontrar um campo, use null.`,
             <div className="space-y-2">
               <Label>Unidade</Label>
               <Select value={form.unidade} onValueChange={(v) => updateField('unidade', v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
                 <SelectContent>
                   {UNIDADES.map((u) => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                    <SelectItem key={u} value={u}>
+                      {u}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -286,8 +294,13 @@ Se não encontrar um campo, use null.`,
 
             <div className="space-y-2">
               <Label>Índice de Reajuste</Label>
-              <Select value={form.indice_reajuste} onValueChange={(v) => updateField('indice_reajuste', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.indice_reajuste}
+                onValueChange={(v) => updateField('indice_reajuste', v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="IGPM">IGP-M</SelectItem>
                   <SelectItem value="IPCA">IPCA</SelectItem>
@@ -298,10 +311,7 @@ Se não encontrar um campo, use null.`,
 
             <div className="space-y-2 md:col-span-2">
               <Label>Endereço do Imóvel</Label>
-              <Input
-                value={form.imovel}
-                onChange={(e) => updateField('imovel', e.target.value)}
-              />
+              <Input value={form.imovel} onChange={(e) => updateField('imovel', e.target.value)} />
             </div>
 
             <div className="space-y-2">
@@ -348,7 +358,9 @@ Se não encontrar um campo, use null.`,
               className="flex-1"
             >
               {saving ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</>
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...
+                </>
               ) : (
                 'Salvar Contrato'
               )}
@@ -362,4 +374,3 @@ Se não encontrar um campo, use null.`,
     </div>
   )
 }
-

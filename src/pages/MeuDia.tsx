@@ -1,8 +1,19 @@
 import { useState, useMemo } from 'react'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Clock, AlertCircle, FileText, PlayCircle, AlertTriangle, Bot } from 'lucide-react'
+import {
+  Clock,
+  AlertCircle,
+  FileText,
+  PlayCircle,
+  AlertTriangle,
+  Bot,
+  Award,
+  TrendingUp,
+  CheckCircle2,
+} from 'lucide-react'
 import useAuthStore from '@/stores/useAuthStore'
+import usePipelineAccess from '@/stores/usePipelineAccess'
 import { db } from '@/lib/mock-data'
 import { Task } from '@/types'
 import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog'
@@ -10,7 +21,29 @@ import { cn } from '@/lib/utils'
 
 export default function MeuDia() {
   const { user } = useAuthStore()
+  const { metrics, myActiveCoverage, temporaryStageIds, stages } = usePipelineAccess()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+
+  // Métricas do usuário logado
+  const myMetric = useMemo(() => {
+    return (
+      metrics.find((m) => m.colaborador_id === user?.id) || {
+        score_total: 87,
+        classificacao: 'Bom',
+        score_sla: 91,
+        tarefas_reabertas: 1,
+        tarefas_total: 38,
+        acessos_adjacentes: 2,
+      }
+    )
+  }, [metrics, user?.id])
+
+  const coverageStageNames = useMemo(() => {
+    return stages
+      .filter((s) => temporaryStageIds.includes(s.id))
+      .map((s) => s.shortName)
+      .join(', ')
+  }, [stages, temporaryStageIds])
 
   const myTasks = useMemo(
     () => db.tasks.filter((t) => (t.assigneeIds || []).includes(user?.id || '')),
@@ -158,6 +191,92 @@ export default function MeuDia() {
             className="h-16 opacity-80 mix-blend-multiply"
           />
         </div>
+      </div>
+
+      {/* Card: Seu Desempenho Este Mês */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="col-span-1 md:col-span-2 shadow-sm border bg-gradient-to-r from-card to-muted/30">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-primary" /> Seu Desempenho Este Mês
+              </CardTitle>
+              <Badge
+                className={
+                  myMetric.score_total >= 90
+                    ? 'bg-emerald-600 text-white'
+                    : myMetric.score_total >= 70
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-orange-500 text-white'
+                }
+              >
+                Score: {myMetric.score_total}/100 {myMetric.classificacao}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3 pt-1 text-center">
+              <div className="p-2 rounded-lg bg-background border">
+                <span className="text-xs text-muted-foreground block">SLA no Prazo</span>
+                <span className="text-xl font-bold font-mono text-emerald-600">
+                  {myMetric.score_sla}%
+                </span>
+              </div>
+              <div className="p-2 rounded-lg bg-background border">
+                <span className="text-xs text-muted-foreground block">Retrabalho</span>
+                <span className="text-xl font-bold font-mono text-foreground">
+                  {Math.round((myMetric.tarefas_reabertas / (myMetric.tarefas_total || 1)) * 100)}%
+                </span>
+              </div>
+              <div className="p-2 rounded-lg bg-background border">
+                <span className="text-xs text-muted-foreground block">Tarefas</span>
+                <span className="text-xl font-bold font-mono text-foreground">
+                  {myMetric.tarefas_total}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-3 text-xs text-emerald-600 font-medium">
+              <TrendingUp className="w-4 h-4" /> Evolução: ↑ +5 pontos vs mês anterior
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card de Cobertura Ativa se houver */}
+        {myActiveCoverage ? (
+          <Card className="shadow-sm border border-amber-500/30 bg-amber-500/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-amber-600" /> Cobertura Ativa
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-xs">
+              <p className="font-semibold text-foreground">
+                Você está cobrindo: {coverageStageNames || 'Vistoria de Entrada'}
+              </p>
+              <p className="text-muted-foreground">
+                Titular: {myActiveCoverage.colaborador_ausente_nome}
+              </p>
+              <Badge
+                variant="outline"
+                className="bg-background text-[10px] mt-1 border-amber-500/30"
+              >
+                Até {new Date(myActiveCoverage.data_fim_prevista).toLocaleDateString('pt-BR')}
+              </Badge>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="shadow-sm border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Escopo de Atuação
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs text-muted-foreground space-y-1">
+              <p className="text-foreground font-medium">Etapas da Esteira Atribuídas</p>
+              <p>Operando em conformidade com as regras de acesso da Gabriel.</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="space-y-8">

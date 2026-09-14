@@ -14,15 +14,22 @@ import { Badge } from '@/components/ui/badge'
 import { FileText, SplitSquareHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InspectionCompareDialog } from '@/components/inspections/InspectionCompareDialog'
+import usePipelineAccess from '@/stores/usePipelineAccess'
+import { AdjacentAccessBanner } from '@/components/pipeline/AdjacentAccessBanner'
 
 export default function Vistorias() {
   const [selectedCompare, setSelectedCompare] = useState<Inspection | null>(null)
+  const { canOperateStage, canReadAdjacentStage } = usePipelineAccess()
+  const isAdjacent = !canOperateStage('4') && canReadAdjacentStage('4')
 
   const getPropertyTitle = (id: string) => db.properties.find((p) => p.id === id)?.title || 'N/A'
   const getInspectorName = (id: string) => db.users.find((u) => u.id === id)?.name || 'N/A'
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in-up">
+      {isAdjacent && (
+        <AdjacentAccessBanner stageName="Vistoria de Entrada / Técnicas" stageNumber={4} />
+      )}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Vistorias</h1>
         <p className="text-muted-foreground mt-1">Laudos de inspeção estrutural, rotina e saída.</p>
@@ -69,17 +76,27 @@ export default function Vistorias() {
                   </TableCell>
                   <TableCell className="text-right flex items-center justify-end gap-2">
                     {i.type === 'Saída' && i.entryPhotoUrl && (
-                      <Button variant="outline" size="sm" onClick={() => setSelectedCompare(i)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isAdjacent}
+                        onClick={() => setSelectedCompare(i)}
+                      >
                         <SplitSquareHorizontal className="h-4 w-4 mr-2" /> Comparar
                       </Button>
                     )}
                     {i.reportUrl ? (
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver Laudo">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title={isAdjacent ? 'Visualização somente-leitura' : 'Ver Laudo'}
+                      >
                         <FileText className="h-4 w-4 text-primary" />
                       </Button>
                     ) : (
                       <span className="text-muted-foreground text-xs italic w-8 text-center">
-                        Pendente
+                        {isAdjacent ? 'Bloqueado para edição' : 'Pendente'}
                       </span>
                     )}
                   </TableCell>

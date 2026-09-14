@@ -22,20 +22,19 @@ interface ContractDetailSheetProps {
 }
 
 const fmt = (v: number | null | undefined) =>
-  v != null
-    ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-    : 'N/A'
+  v != null ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'N/A'
 
 const fmtDate = (d: string | null | undefined) => {
   if (!d) return 'N/A'
   return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 
-function diasLabel(dataFim: string | null): { text: string; variant: 'success' | 'warning' | 'destructive' | 'secondary' } {
+function diasLabel(dataFim: string | null): {
+  text: string
+  variant: 'success' | 'warning' | 'destructive' | 'secondary'
+} {
   if (!dataFim) return { text: 'Indeterminado', variant: 'secondary' }
-  const dias = Math.round(
-    (new Date(dataFim + 'T00:00:00').getTime() - Date.now()) / 86400000
-  )
+  const dias = Math.round((new Date(dataFim + 'T00:00:00').getTime() - Date.now()) / 86400000)
   if (dias < 0) return { text: `Vencido há ${Math.abs(dias)} dias`, variant: 'destructive' }
   if (dias <= 30) return { text: `Vence em ${dias} dias`, variant: 'warning' }
   if (dias <= 90) return { text: `Vence em ${dias} dias`, variant: 'warning' }
@@ -79,7 +78,10 @@ export default function ContractDetailSheet({
   }
 
   const fields = [
-    { label: 'Parte', value: contrato.nome_parte || contrato.contract_number || contrato.id.slice(0, 8) },
+    {
+      label: 'Parte',
+      value: contrato.nome_parte || contrato.contract_number || contrato.id.slice(0, 8),
+    },
     { label: 'CPF / CNPJ', value: contrato.cpf_cnpj || 'N/A' },
     { label: 'Endereço', value: contrato.imovel_endereco || 'N/A', span: true },
     { label: 'Unidade', value: contrato.unidade || 'N/A' },
@@ -103,7 +105,8 @@ export default function ContractDetailSheet({
           <SheetHeader>
             <div className="flex items-center justify-between gap-2">
               <SheetTitle className="text-xl">
-                {contrato.nome_parte || `Contrato ${contrato.contract_number || contrato.id.slice(0, 8)}`}
+                {contrato.nome_parte ||
+                  `Contrato ${contrato.contract_number || contrato.id.slice(0, 8)}`}
               </SheetTitle>
               <Badge variant={venc.variant}>{venc.text}</Badge>
             </div>
@@ -113,7 +116,11 @@ export default function ContractDetailSheet({
               </Badge>
               <Badge
                 variant={
-                  contrato.status === 'Ativo' ? 'outline' : contrato.status === 'Encerrado' ? 'secondary' : 'destructive'
+                  contrato.status === 'Ativo'
+                    ? 'outline'
+                    : contrato.status === 'Encerrado'
+                      ? 'secondary'
+                      : 'destructive'
                 }
                 className={contrato.status === 'Ativo' ? 'border-primary text-primary' : ''}
               >
@@ -153,9 +160,7 @@ export default function ContractDetailSheet({
             </h3>
 
             {attachments.length === 0 && (
-              <p className="text-sm text-muted-foreground mb-4">
-                Nenhum documento anexado ainda.
-              </p>
+              <p className="text-sm text-muted-foreground mb-4">Nenhum documento anexado ainda.</p>
             )}
 
             <div className="space-y-2 mb-4">
@@ -167,7 +172,9 @@ export default function ContractDetailSheet({
                     className="flex items-center gap-3 p-3 rounded-md border bg-muted/30"
                   >
                     <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-                    <span className="flex-1 text-sm truncate">{contrato.arquivo_nome || fileName}</span>
+                    <span className="flex-1 text-sm truncate">
+                      {contrato.arquivo_nome || fileName}
+                    </span>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -197,9 +204,13 @@ export default function ContractDetailSheet({
             <div className="relative">
               <Button variant="outline" className="w-full" disabled={uploading}>
                 {uploading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</>
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...
+                  </>
                 ) : (
-                  <><Upload className="mr-2 h-4 w-4" /> Anexar Documento</>
+                  <>
+                    <Upload className="mr-2 h-4 w-4" /> Anexar Documento
+                  </>
                 )}
               </Button>
               <input
@@ -216,4 +227,3 @@ export default function ContractDetailSheet({
     </Sheet>
   )
 }
-

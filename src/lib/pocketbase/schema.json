@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-16T07:36:22.915Z",
+  "generatedAt": "2026-09-14T22:44:44.504Z",
   "collections": [
     {
       "name": "users",
@@ -29,25 +29,624 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
         "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
       ]
+    },
+    {
+      "name": "log_auditoria",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "colaborador_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "colaborador_nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "acao_tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "visualizou",
+            "visualizou_adjacente",
+            "editou",
+            "avancou_etapa",
+            "criou_tarefa",
+            "concluiu_tarefa",
+            "reabriu_tarefa",
+            "acessou_com_permissao_extra",
+            "tentou_acesso_negado"
+          ]
+        },
+        {
+          "name": "etapa_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "etapa_propria",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contrato_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_antes",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_depois",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ip",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dispositivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autorizado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "timestamp",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_audit_colab ON log_auditoria (colaborador_id, created DESC)",
+        "CREATE INDEX idx_audit_acao ON log_auditoria (acao_tipo)",
+        "CREATE INDEX idx_audit_etapa ON log_auditoria (etapa_id)"
+      ]
+    },
+    {
+      "name": "etapas_permissoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "colaborador_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "etapa_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["permanente", "temporaria"]
+        },
+        {
+          "name": "data_inicio",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_fim",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autorizado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_etapas_perm_colab ON etapas_permissoes (colaborador_id)"]
+    },
+    {
+      "name": "metricas_diarias",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "colaborador_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "colaborador_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tarefas_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tarefas_no_prazo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tarefas_atrasadas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tarefas_reabertas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tempo_medio_conclusao_min",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "acessos_negados",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "acessos_adjacentes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_sla",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_qualidade",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_volume",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_comportamento",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "classificacao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Excelente", "Bom", "Atenção", "Crítico"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_metricas_colab_data ON metricas_diarias (colaborador_id, data)"]
+    },
+    {
+      "name": "registros_formais",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "colaborador_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "colaborador_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["acerto", "ocorrencia"]
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "contrato_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "impacto",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Baixo", "Médio", "Alto", "Crítico"]
+        },
+        {
+          "name": "registrado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "visibilidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["todos", "gestores"]
+        },
+        {
+          "name": "tipo_erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plano_acao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_regform_colab ON registros_formais (colaborador_id)"]
+    },
+    {
+      "name": "coberturas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "colaborador_ausente_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "colaborador_ausente_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "colaborador_substituto_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "colaborador_substituto_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "etapas_cobertas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_inicio",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_fim_prevista",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_fim_real",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autorizado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ativa", "concluida", "cancelada"]
+        },
+        {
+          "name": "relatorio_acoes",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_coberturas_sub ON coberturas (colaborador_substituto_id, status)"
+      ]
+    },
+    {
+      "name": "notificacoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "destinatario_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destinatario_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mensagem",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "whatsapp_parabens",
+            "whatsapp_sla_alerta",
+            "whatsapp_cobertura",
+            "whatsapp_gestor_tentativa",
+            "whatsapp_gestor_retrabalho",
+            "whatsapp_gestor_destaque",
+            "whatsapp_retorno_cobertura",
+            "sistema"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pendente", "enviada", "lida"]
+        },
+        {
+          "name": "enviada_em",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_notif_dest ON notificacoes (destinatario_id, status)"]
     }
   ]
 }

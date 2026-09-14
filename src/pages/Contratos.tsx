@@ -26,9 +26,7 @@ import ContractUploadZone from '@/components/contratos/ContractUploadZone'
 import ContractDetailSheet from '@/components/contratos/ContractDetailSheet'
 
 const fmt = (v: number | null | undefined) =>
-  v != null
-    ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-    : '—'
+  v != null ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'
 
 const fmtDate = (d: string | null | undefined) => {
   if (!d) return '—'
@@ -115,8 +113,7 @@ export default function Contratos() {
   const getDiasVencBadge = (dataFim: string | null) => {
     if (!dataFim) return <Badge variant="secondary">Indeterminado</Badge>
     const dias = diasParaVencimento(dataFim)
-    if (dias < 0)
-      return <Badge variant="destructive">Vencido há {Math.abs(dias)}d</Badge>
+    if (dias < 0) return <Badge variant="destructive">Vencido há {Math.abs(dias)}d</Badge>
     if (dias <= 30) return <Badge variant="warning">Vence em {dias}d</Badge>
     if (dias <= 90)
       return (
@@ -156,11 +153,7 @@ export default function Contratos() {
 
       {/* View: Upload */}
       {view === 'upload' && (
-        <ContractUploadZone
-          onSave={handleSave}
-          onCancel={() => setView('lista')}
-          saving={saving}
-        />
+        <ContractUploadZone onSave={handleSave} onCancel={() => setView('lista')} saving={saving} />
       )}
 
       {/* View: Lista */}

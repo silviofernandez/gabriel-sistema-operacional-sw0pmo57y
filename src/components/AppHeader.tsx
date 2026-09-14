@@ -1,4 +1,13 @@
-import { Bell, Search, LogOut, AlertTriangle, Clock } from 'lucide-react'
+import {
+  Bell,
+  Search,
+  LogOut,
+  AlertTriangle,
+  Clock,
+  ShieldCheck,
+  UserCheck,
+  MessageSquare,
+} from 'lucide-react'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -17,11 +26,14 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import useAuthStore, { UserProfileLevel } from '@/stores/useAuthStore'
 import useDataStore from '@/stores/useDataStore'
+import usePipelineAccess from '@/stores/usePipelineAccess'
 import { Badge } from '@/components/ui/badge'
 
 export function AppHeader() {
   const { user, profileLevel, setProfileLevel, logout } = useAuthStore()
   const { db } = useDataStore()
+  const { stages, assignedStageIds, temporaryStageIds, myActiveCoverage, notifications } =
+    usePipelineAccess()
 
   const profileLevels: UserProfileLevel[] = ['Diretor', 'Gestor', 'Colaborador']
 
@@ -61,16 +73,73 @@ export function AppHeader() {
     return `${Math.floor(diff)}h ${Math.floor((diff % 1) * 60)}m restantes`
   }
 
+  // Nomes das etapas ativas do colaborador
+  const activeStagesList = stages
+    .filter((s) => assignedStageIds.includes(s.id))
+    .map((s) => s.shortName)
+
+  // Etapas em cobertura temporária
+  const temporaryStagesList = stages
+    .filter((s) => temporaryStageIds.includes(s.id))
+    .map((s) => s.shortName)
+
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 z-10 sticky top-0">
-      <div className="flex items-center gap-4 flex-1">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 z-10 sticky top-0 gap-3">
+      <div className="flex items-center gap-4 flex-1 min-w-0">
         <SidebarTrigger />
-        <div className="relative w-full max-w-md hidden md:flex items-center">
+
+        {/* Barra superior de status de etapas do colaborador */}
+        <div className="hidden lg:flex items-center gap-2 overflow-hidden text-xs">
+          <span className="font-semibold text-foreground truncate">{user.name}</span>
+          <span className="text-muted-foreground">·</span>
+          {profileLevel === 'Colaborador' ? (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {activeStagesList.length > 0 ? (
+                activeStagesList.map((stg) => (
+                  <Badge
+                    key={stg}
+                    variant="outline"
+                    className="text-[11px] font-normal bg-muted/40 border-primary/20 text-foreground py-0"
+                  >
+                    {stg}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-muted-foreground text-xs">Sem etapas fixas</span>
+              )}
+
+              {/* Badge visual de cobertura temporária */}
+              {myActiveCoverage && (
+                <Badge
+                  variant="secondary"
+                  className="bg-amber-500/15 border-amber-500/30 text-amber-900 dark:text-amber-200 text-[11px] gap-1 py-0 animate-pulse font-medium"
+                >
+                  <UserCheck className="w-3 h-3 text-amber-600" />+ Cobrindo:{' '}
+                  {temporaryStagesList.join(', ') || 'Etapa'} (temporário até{' '}
+                  {new Date(myActiveCoverage.data_fim_prevista).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                  })}
+                  )
+                </Badge>
+              )}
+            </div>
+          ) : (
+            <Badge
+              variant="outline"
+              className="text-[11px] bg-primary/5 text-primary border-primary/20"
+            >
+              <ShieldCheck className="w-3 h-3 mr-1" /> Visão Geral ({profileLevel})
+            </Badge>
+          )}
+        </div>
+
+        <div className="relative w-full max-w-xs hidden xl:flex items-center ml-auto">
           <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Buscar contratos, clientes ou imóveis..."
-            className="w-full bg-muted/30 pl-9 rounded-md border-transparent focus-visible:ring-primary/30 shadow-none focus-visible:bg-background focus-visible:border-border transition-all"
+            placeholder="Buscar na esteira..."
+            className="w-full bg-muted/30 pl-9 h-8 text-xs rounded-md border-transparent focus-visible:ring-primary/30 shadow-none focus-visible:bg-background focus-visible:border-border transition-all"
           />
         </div>
       </div>
@@ -79,7 +148,7 @@ export function AppHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative hover:bg-muted/50 rounded-full">
               <Bell className="h-5 w-5 text-muted-foreground" />
-              {criticalAlerts.length > 0 && profileLevel !== 'Colaborador' && (
+              {(criticalAlerts.length > 0 || notifications.length > 0) && (
                 <span className="absolute top-2 right-2 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive border-2 border-background"></span>
@@ -87,40 +156,65 @@ export function AppHeader() {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
+          <DropdownMenuContent align="end" className="w-84 sm:w-96">
             <DropdownMenuLabel className="flex items-center justify-between">
-              Notificações e Alertas
+              <span className="font-semibold">Central de Notificações & WhatsApp</span>
+              <Badge variant="outline" className="text-[10px] font-mono">
+                {notifications.length} registros
+              </Badge>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {profileLevel !== 'Colaborador' && criticalAlerts.length > 0 ? (
-              <ScrollArea className="max-h-[300px]">
-                <div className="flex flex-col gap-1.5 p-1.5">
-                  {criticalAlerts.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex flex-col gap-1.5 p-3 rounded-md hover:bg-muted/50 bg-destructive/5 border border-destructive/10 cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-destructive flex items-center gap-1 uppercase tracking-wider">
-                          <AlertTriangle className="w-3.5 h-3.5" /> SLA Crítico
-                        </span>
-                        <span className="text-xs text-muted-foreground font-mono flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {formatTimeLeft(t.deadline)}
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium line-clamp-2 leading-tight text-foreground">
-                        {t.title}
+            <ScrollArea className="max-h-[350px]">
+              <div className="flex flex-col gap-2 p-1.5">
+                {/* Notificações no canal WhatsApp */}
+                {notifications.slice(0, 5).map((n) => (
+                  <div
+                    key={n.id}
+                    className="p-2.5 rounded-md border text-xs bg-muted/20 hover:bg-muted/40 transition-colors flex flex-col gap-1"
+                  >
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="font-semibold text-emerald-600 flex items-center gap-1">
+                        <MessageSquare className="w-3 h-3" /> WhatsApp Automático
+                      </span>
+                      <span className="text-muted-foreground font-mono">
+                        {n.enviada_em ? n.enviada_em.slice(11, 16) : 'Agora'}
                       </span>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="p-6 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
-                <Bell className="w-8 h-8 opacity-20" />
-                Nenhuma notificação urgente.
+                    <p className="text-foreground leading-snug">{n.mensagem}</p>
+                    <span className="text-[10px] text-muted-foreground">
+                      Destinatário: {n.destinatario_nome || 'Equipe'}
+                    </span>
+                  </div>
+                ))}
+
+                {/* Alertas de SLA */}
+                {criticalAlerts.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex flex-col gap-1.5 p-3 rounded-md hover:bg-muted/50 bg-destructive/5 border border-destructive/10 cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-destructive flex items-center gap-1 uppercase tracking-wider">
+                        <AlertTriangle className="w-3.5 h-3.5" /> SLA Crítico
+                      </span>
+                      <span className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {formatTimeLeft(t.deadline)}
+                      </span>
+                    </div>
+                    <span className="text-sm font-medium line-clamp-2 leading-tight text-foreground">
+                      {t.title}
+                    </span>
+                  </div>
+                ))}
+
+                {notifications.length === 0 && criticalAlerts.length === 0 && (
+                  <div className="p-6 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+                    <Bell className="w-8 h-8 opacity-20" />
+                    Nenhuma notificação urgente.
+                  </div>
+                )}
               </div>
-            )}
+            </ScrollArea>
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>

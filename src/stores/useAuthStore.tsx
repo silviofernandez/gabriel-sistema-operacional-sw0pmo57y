@@ -47,7 +47,10 @@ async function fetchUserProfile(authUserId: string) {
     .select('*')
     .eq('auth_user_id', authUserId)
     .single()
-  if (error) { console.error('Erro ao buscar perfil:', error.message); return null }
+  if (error) {
+    console.error('Erro ao buscar perfil:', error.message)
+    return null
+  }
   return data
 }
 
@@ -74,7 +77,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       setNeedsOnboarding(false)
     } else {
-      setUserData({ id: authUser.id, name: authUser.email?.split('@')[0] || '', email: authUser.email || '', avatar: '' })
+      setUserData({
+        id: authUser.id,
+        name: authUser.email?.split('@')[0] || '',
+        email: authUser.email || '',
+        avatar: '',
+      })
       setNeedsOnboarding(true)
     }
   }, [])
@@ -82,15 +90,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s)
-      if (s?.user) { loadProfile(s.user).finally(() => setLoading(false)) }
-      else { setLoading(false) }
+      if (s?.user) {
+        loadProfile(s.user).finally(() => setLoading(false))
+      } else {
+        setLoading(false)
+      }
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, s) => {
       setSession(s)
-      if (s?.user) { await loadProfile(s.user) }
-      else { setUsuarioId(''); setRoleState('Colaborador'); setProfileLevelState('Colaborador'); setUserData({ id: '', name: '', email: '', avatar: '' }); setNeedsOnboarding(false) }
+      if (s?.user) {
+        await loadProfile(s.user)
+      } else {
+        setUsuarioId('')
+        setRoleState('Colaborador')
+        setProfileLevelState('Colaborador')
+        setUserData({ id: '', name: '', email: '', avatar: '' })
+        setNeedsOnboarding(false)
+      }
     })
-    return () => { subscription.unsubscribe() }
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [loadProfile])
 
   const login = useCallback(async (email: string, password: string) => {
@@ -102,18 +124,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) return { error: error.message }
     if (data.user) {
-      await supabase.from('usuarios').insert({ auth_user_id: data.user.id, name, email, role: 'Colaborador', profile_level: 'Colaborador', is_active: true })
+      await supabase.from('usuarios').insert({
+        auth_user_id: data.user.id,
+        name,
+        email,
+        role: 'Colaborador',
+        profile_level: 'Colaborador',
+        is_active: true,
+      })
     }
     return { error: null }
   }, [])
 
   const sendMagicLink = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin + '/auth/callback' } })
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + '/auth/callback' },
+    })
     return { error: error ? error.message : null }
   }, [])
 
   const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/auth/reset-password' })
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/auth/reset-password',
+    })
     return { error: error ? error.message : null }
   }, [])
 
@@ -121,27 +155,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut()
-    setSession(null); setUsuarioId(''); setRoleState('Colaborador'); setProfileLevelState('Colaborador')
-    setUserData({ id: '', name: '', email: '', avatar: '' }); setNeedsOnboarding(false)
+    setSession(null)
+    setUsuarioId('')
+    setRoleState('Colaborador')
+    setProfileLevelState('Colaborador')
+    setUserData({ id: '', name: '', email: '', avatar: '' })
+    setNeedsOnboarding(false)
   }, [])
 
-  const setRole = useCallback((r: UserRole) => {
-    setRoleState(r)
-    if (usuarioId) { supabase.from('usuarios').update({ role: r }).eq('id', usuarioId).then() }
-  }, [usuarioId])
+  const setRole = useCallback(
+    (r: UserRole) => {
+      setRoleState(r)
+      if (usuarioId) {
+        supabase.from('usuarios').update({ role: r }).eq('id', usuarioId).then()
+      }
+    },
+    [usuarioId],
+  )
 
-  const setProfileLevel = useCallback((l: UserProfileLevel) => {
-    setProfileLevelState(l)
-    if (usuarioId) { supabase.from('usuarios').update({ profile_level: l }).eq('id', usuarioId).then() }
-  }, [usuarioId])
+  const setProfileLevel = useCallback(
+    (l: UserProfileLevel) => {
+      setProfileLevelState(l)
+      if (usuarioId) {
+        supabase.from('usuarios').update({ profile_level: l }).eq('id', usuarioId).then()
+      }
+    },
+    [usuarioId],
+  )
 
   const isAuthenticated = !!session
 
-  const value = useMemo<AuthState>(() => ({
-    isAuthenticated, needsOnboarding, userId: usuarioId || userData.id, loading,
-    login, signup, sendMagicLink, resetPassword, completeOnboarding, logout,
-    role, setRole, profileLevel, setProfileLevel, user: userData, session,
-  }), [isAuthenticated, needsOnboarding, usuarioId, userData, loading, login, signup, sendMagicLink, resetPassword, completeOnboarding, logout, role, setRole, profileLevel, setProfileLevel, session])
+  const value = useMemo<AuthState>(
+    () => ({
+      isAuthenticated,
+      needsOnboarding,
+      userId: usuarioId || userData.id,
+      loading,
+      login,
+      signup,
+      sendMagicLink,
+      resetPassword,
+      completeOnboarding,
+      logout,
+      role,
+      setRole,
+      profileLevel,
+      setProfileLevel,
+      user: userData,
+      session,
+    }),
+    [
+      isAuthenticated,
+      needsOnboarding,
+      usuarioId,
+      userData,
+      loading,
+      login,
+      signup,
+      sendMagicLink,
+      resetPassword,
+      completeOnboarding,
+      logout,
+      role,
+      setRole,
+      profileLevel,
+      setProfileLevel,
+      session,
+    ],
+  )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
@@ -150,4 +231,4 @@ export default function useAuthStore() {
   const context = useContext(AuthContext)
   if (!context) throw new Error('useAuthStore must be used within AuthProvider')
   return context
-  }
+}

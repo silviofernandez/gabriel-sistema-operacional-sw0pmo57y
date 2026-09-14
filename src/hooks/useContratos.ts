@@ -92,7 +92,7 @@ export default function useContratos() {
           unidade: c.extra_fields?.unidade as string,
           arquivo_nome: c.extra_fields?.arquivo_nome as string,
           data_assinatura: c.extra_fields?.data_assinatura as string,
-        }))
+        })),
       )
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar contratos')
@@ -118,18 +118,17 @@ export default function useContratos() {
   }, [])
 
   const getDocumentoUrl = useCallback(async (path: string) => {
-    const { data } = await supabase.storage
-      .from('documentos')
-      .createSignedUrl(path, 3600) // 1h de validade
+    const { data } = await supabase.storage.from('documentos').createSignedUrl(path, 3600) // 1h de validade
 
     return data?.signedUrl || null
   }, [])
 
   const criarContrato = useCallback(
     async (dados: ContratoUploadData, arquivo?: File) => {
-      const rentValue = typeof dados.valor_aluguel === 'string'
-        ? parseFloat(dados.valor_aluguel.replace(',', '.'))
-        : dados.valor_aluguel
+      const rentValue =
+        typeof dados.valor_aluguel === 'string'
+          ? parseFloat(dados.valor_aluguel.replace(',', '.'))
+          : dados.valor_aluguel
 
       const insertData: Record<string, unknown> = {
         start_date: dados.data_inicio || null,
@@ -169,7 +168,7 @@ export default function useContratos() {
       await fetchContratos()
       return contrato
     },
-    [fetchContratos, uploadDocumento]
+    [fetchContratos, uploadDocumento],
   )
 
   const adicionarDocumento = useCallback(
@@ -192,7 +191,7 @@ export default function useContratos() {
       await fetchContratos()
       return path
     },
-    [fetchContratos, uploadDocumento]
+    [fetchContratos, uploadDocumento],
   )
 
   const stats = {
@@ -220,4 +219,3 @@ export default function useContratos() {
     diasParaVencimento,
   }
 }
-

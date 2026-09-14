@@ -21,7 +21,11 @@ export default function Login() {
     setIsLoading(true)
     const { error } = await login(email, password)
     if (error) {
-      toast({ title: 'Erro no login', description: error === 'Invalid login credentials' ? 'Email ou senha incorretos.' : error, variant: 'destructive' })
+      toast({
+        title: 'Erro no login',
+        description: error === 'Invalid login credentials' ? 'Email ou senha incorretos.' : error,
+        variant: 'destructive',
+      })
       setIsLoading(false)
       return
     }
@@ -31,11 +35,21 @@ export default function Login() {
 
   const handleResetPassword = async (e: React.MouseEvent) => {
     e.preventDefault()
-    if (!email) { toast({ title: 'Informe o email', description: 'Digite seu email acima para recuperar a senha.', variant: 'destructive' }); return }
+    if (!email) {
+      toast({
+        title: 'Informe o email',
+        description: 'Digite seu email acima para recuperar a senha.',
+        variant: 'destructive',
+      })
+      return
+    }
     setIsResetting(true)
     const { error } = await resetPassword(email)
     setIsResetting(false)
-    if (error) { toast({ title: 'Erro', description: error, variant: 'destructive' }); return }
+    if (error) {
+      toast({ title: 'Erro', description: error, variant: 'destructive' })
+      return
+    }
     toast({ title: 'Email enviado', description: 'Verifique sua caixa de entrada.' })
   }
 
@@ -49,27 +63,59 @@ export default function Login() {
             <Home className="h-8 w-8 text-primary-foreground" />
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-3xl font-bold tracking-tight text-foreground">AlugAI</CardTitle>
-            <CardDescription className="text-base text-muted-foreground">Gest\u00e3o inteligente de loca\u00e7\u00f5es</CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight text-foreground">
+              AlugAI
+            </CardTitle>
+            <CardDescription className="text-base text-muted-foreground">
+              Gest\u00e3o inteligente de loca\u00e7\u00f5es
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4 animate-fade-in-up">
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none text-foreground">Email</label>
-              <Input type="email" placeholder="seu@email.com.br" className="h-12 bg-background" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={isLoading} />
+              <Input
+                type="email"
+                placeholder="seu@email.com.br"
+                className="h-12 bg-background"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isLoading}
+              />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium leading-none text-foreground">Senha</label>
-                <button type="button" onClick={handleResetPassword} className="text-sm font-medium text-primary hover:underline disabled:opacity-50" disabled={isResetting}>
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
+                  disabled={isResetting}
+                >
                   {isResetting ? 'Enviando...' : 'Recuperar senha'}
                 </button>
               </div>
-              <Input type="password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" className="h-12 bg-background" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={isLoading} />
+              <Input
+                type="password"
+                placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+                className="h-12 bg-background"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
             </div>
             <Button type="submit" className="w-full h-12 text-base mt-6" disabled={isLoading}>
-              {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Entrando...</>) : 'Entrar na plataforma'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Entrando...
+                </>
+              ) : (
+                'Entrar na plataforma'
+              )}
             </Button>
           </form>
         </CardContent>
@@ -79,4 +125,4 @@ export default function Login() {
       </div>
     </div>
   )
-    }
+}
