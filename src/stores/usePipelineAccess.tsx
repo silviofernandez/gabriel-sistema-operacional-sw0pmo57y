@@ -79,6 +79,23 @@ interface PipelineAccessState {
   removeTarefa: (id: string) => Promise<boolean>
   refreshTarefas: () => Promise<void>
 
+  // Metas & Prêmios da Esteira (Master gerencia, colaboradores consultam conforme escopo)
+  metas: import('@/types/pipeline').MetaPremioItem[]
+  addMetaPremio: (
+    meta: Omit<import('@/types/pipeline').MetaPremioItem, 'id' | 'created' | 'updated'>,
+  ) => Promise<boolean>
+  updateMetaPremio: (
+    id: string,
+    updates: Partial<import('@/types/pipeline').MetaPremioItem>,
+  ) => Promise<boolean>
+  removeMetaPremio: (id: string) => Promise<boolean>
+  refreshMetas: () => Promise<void>
+  claimMetaConquista: (
+    metaId: string,
+    colaboradorId: string,
+    colaboradorNome: string,
+  ) => Promise<void>
+
   // Modal de Acesso Restrito
   restrictedModalState: {
     isOpen: boolean
@@ -103,6 +120,7 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
   const [formalRecords, setFormalRecords] = useState<FormalRecordItem[]>([])
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [tarefas, setTarefas] = useState<import('@/types/pipeline').TarefaOrdemItem[]>([])
+  const [metas, setMetas] = useState<import('@/types/pipeline').MetaPremioItem[]>([])
 
   const [restrictedModalState, setRestrictedModalState] = useState<{
     isOpen: boolean
@@ -117,7 +135,7 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
   // Carregar dados iniciais
   const refreshAll = useCallback(async () => {
     try {
-      const [p, c, l, m, f, n, t] = await Promise.all([
+      const [p, c, l, m, f, n, t, g] = await Promise.all([
         pipelineService.fetchStagePermissions(),
         pipelineService.fetchCoverages(),
         pipelineService.fetchAuditLogs('', '-created', 150),
@@ -125,6 +143,7 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
         pipelineService.fetchFormalRecords(),
         pipelineService.fetchNotifications(),
         pipelineService.fetchTarefas(),
+        pipelineService.fetchMetasPremios(),
       ])
       setPermissions(p)
       setCoverages(c)
@@ -133,6 +152,7 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
       setFormalRecords(f)
       setNotifications(n)
       setTarefas(t)
+      setMetas(g)
     } catch (err) {
       console.warn('Erro ao carregar dados do pipeline:', err)
     }
@@ -141,6 +161,11 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
   const refreshTarefas = useCallback(async () => {
     const t = await pipelineService.fetchTarefas()
     setTarefas(t)
+  }, [])
+
+  const refreshMetas = useCallback(async () => {
+    const g = await pipelineService.fetchMetasPremios()
+    setMetas(g)
   }, [])
 
   useEffect(() => {
@@ -462,6 +487,149 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
     [tarefas, user.name, logAuditAction],
   )
 
+  // Gerenciamento de Metas & Prêmios pelo Master com Auditoria
+  const addMetaPremio = useCallback(
+    async (
+      metaData: Omit<import('@/types/pipeline').MetaPremioItem, 'id' | 'created' | 'updated'>,
+    ) => {
+      const created = await pipelineService.createMetaPremio({
+        ...metaData,
+        criado_por: user.name || 'Carlos Silva (Master)',
+      })
+      if (created) {
+        setMetas((prev) => [...prev, created])
+        const stageObj = PIPELINE_STAGES.find((s) => s.id === created.etapa_id)
+        await logAuditAction({
+          acao: 'gerenciou_meta',
+          etapaId: created.etapa_id,
+          motivo: `Master criou meta "${created.titulo}" para ${stageObj?.shortName || `Etapa ${created.etapa_id}`} com prêmio de R$ ${created.premio_valor}`,
+          autorizadoPor: user.name || 'Carlos Silva (Master)',
+          dadosDepois: {
+            id: created.id,
+            titulo: created.titulo,
+            etapa_id: created.etapa_id,
+            tipo_metrica: created.tipo_metrica,
+            valor_alvo: created.valor_alvo,
+            premio_valor: created.premio_valor,
+            data_inicio: created.data_inicio,
+            data_fim: created.data_fim,
+          },
+        })
+        return true
+      }
+      return false
+    },
+    [user.name, logAuditAction],
+  )
+
+  const updateMetaPremio = useCallback(
+    async (id: string, updates: Partial<import('@/types/pipeline').MetaPremioItem>) => {
+      const current = metas.find((m) => m.id === id)
+      const updated = await pipelineService.updateMetaPremio(id, updates)
+      if (updated) {
+        setMetas((prev) => prev.map((m) => (m.id === id ? updated : m)))
+        await logAuditAction({
+          acao: 'gerenciou_meta',
+          etapaId: updated.etapa_id,
+          motivo: `Master editou meta "${updated.titulo}" (prêmio R$ ${updated.premio_valor})`,
+          autorizadoPor: user.name || 'Carlos Silva (Master)',
+          dadosAntes: {
+            titulo: current?.titulo,
+            valor_alvo: current?.valor_alvo,
+            premio_valor: current?.premio_valor,
+          },
+          dadosDepois: {
+            titulo: updated.titulo,
+            valor_alvo: updated.valor_alvo,
+            premio_valor: updated.premio_valor,
+          },
+        })
+        return true
+      }
+      return false
+    },
+    [metas, user.name, logAuditAction],
+  )
+
+  const removeMetaPremio = useCallback(
+    async (id: string) => {
+      const current = metas.find((m) => m.id === id)
+      const success = await pipelineService.deleteMetaPremio(id)
+      if (success) {
+        setMetas((prev) => prev.filter((m) => m.id !== id))
+        if (current) {
+          await logAuditAction({
+            acao: 'gerenciou_meta',
+            etapaId: current.etapa_id,
+            motivo: `Master excluiu meta "${current.titulo}" da etapa ${current.etapa_id}`,
+            autorizadoPor: user.name || 'Carlos Silva (Master)',
+            dadosAntes: {
+              titulo: current.titulo,
+              premio_valor: current.premio_valor,
+            },
+          })
+        }
+        return true
+      }
+      return false
+    },
+    [metas, user.name, logAuditAction],
+  )
+
+  // Registro de conquista de meta pelo colaborador
+  const claimMetaConquista = useCallback(
+    async (metaId: string, colaboradorId: string, colaboradorNome: string) => {
+      const meta = metas.find((m) => m.id === metaId)
+      if (!meta) return
+
+      // Evita duplicar se já foi registrado atingimento nos logs recentes
+      const alreadyLogged = auditLogs.some(
+        (l) =>
+          l.acao_tipo === 'atingiu_meta' &&
+          l.colaborador_id === colaboradorId &&
+          l.motivo?.includes(`meta_id:${metaId}`),
+      )
+      if (alreadyLogged) return
+
+      const formatBRL = (val: number) =>
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+
+      // 1. Gravar registro imutável no log_auditoria
+      await pipelineService.logAction({
+        colaborador_id: colaboradorId,
+        colaborador_nome: colaboradorNome,
+        acao_tipo: 'atingiu_meta',
+        etapa_id: meta.etapa_id,
+        etapa_propria: true,
+        motivo: `Colaborador atingiu a meta "${meta.titulo}" e garantiu o prêmio de ${formatBRL(meta.premio_valor)} [meta_id:${metaId}]`,
+        autorizado_por: 'Sistema AlugAI (Automático)',
+        dados_depois: {
+          meta_id: meta.id,
+          titulo: meta.titulo,
+          etapa_id: meta.etapa_id,
+          premio_valor: meta.premio_valor,
+          tipo_metrica: meta.tipo_metrica,
+          valor_alvo: meta.valor_alvo,
+        },
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      })
+
+      // 2. Criar notificação modelo WhatsApp
+      await pipelineService.sendNotification({
+        destinatario_id: colaboradorId,
+        destinatario_nome: colaboradorNome,
+        telefone: '(11) 98765-4321',
+        mensagem: `Parabéns, ${colaboradorNome.split(' ')[0]}! Você atingiu a meta "${meta.titulo}" e garantiu o prêmio de ${formatBRL(meta.premio_valor)}! 🏆`,
+        tipo: 'whatsapp_parabens',
+        status: 'enviada',
+      })
+
+      await refreshLogs()
+      await refreshNotifications()
+    },
+    [metas, auditLogs, refreshLogs, refreshNotifications],
+  )
+
   // Fluxo de Cobertura de Ausência Completo
   const startCoverage = useCallback(
     async ({
@@ -729,6 +897,12 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
       updateTarefaStatus,
       removeTarefa,
       refreshTarefas,
+      metas,
+      addMetaPremio,
+      updateMetaPremio,
+      removeMetaPremio,
+      refreshMetas,
+      claimMetaConquista,
       restrictedModalState,
       openRestrictedModal,
       closeRestrictedModal,
@@ -763,6 +937,12 @@ export const PipelineAccessProvider: React.FC<{ children: React.ReactNode }> = (
       updateTarefaStatus,
       removeTarefa,
       refreshTarefas,
+      metas,
+      addMetaPremio,
+      updateMetaPremio,
+      removeMetaPremio,
+      refreshMetas,
+      claimMetaConquista,
       restrictedModalState,
       openRestrictedModal,
       closeRestrictedModal,

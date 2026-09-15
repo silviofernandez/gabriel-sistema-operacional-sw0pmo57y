@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useMemo, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import {
   Clock,
   AlertCircle,
@@ -11,6 +12,9 @@ import {
   Award,
   TrendingUp,
   CheckCircle2,
+  Trophy,
+  Coins,
+  Sparkles,
 } from 'lucide-react'
 import useAuthStore from '@/stores/useAuthStore'
 import usePipelineAccess from '@/stores/usePipelineAccess'
@@ -18,15 +22,23 @@ import { db } from '@/lib/mock-data'
 import { Task } from '@/types'
 import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog'
 import { cn } from '@/lib/utils'
+import { calculateMetaProgress, formatBRL, METRICA_LABELS } from '@/utils/metaCalculations'
 
 export default function MeuDia() {
   const { user } = useAuthStore()
-  const { metrics, myActiveCoverage, temporaryStageIds, stages, tarefas, updateTarefaStatus } =
-    usePipelineAccess()
+  const {
+    metrics,
+    myActiveCoverage,
+    assignedStageIds,
+    temporaryStageIds,
+    allActiveStageIds,
+    stages,
+    tarefas,
+    metas,
+    claimMetaConquista,
+    updateTarefaStatus,
+  } = usePipelineAccess()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [selectedOrdem, setSelectedOrdem] = useState<
-    import('@/types/pipeline').TarefaOrdemItem | null
-  >(null)
 
   // Métricas do usuário logado
   const myMetric = useMemo(() => {
@@ -88,6 +100,32 @@ export default function MeuDia() {
         t.status === 'Pendente'),
   )
   const completedOrdens = myOrdens.filter((t) => t.status === 'Concluída')
+
+  // Metas aplicáveis ao colaborador logado:
+  // SIGILO: Só aparecem metas para as etapas que ele de fato opera (assigned ou temporary).
+  // Se não houver metas criadas pelo Master para essas etapas, o array é vazio (sem placeholders expostos).
+  const myApplicableMetasProgress = useMemo(() => {
+    if (!user?.id) return []
+
+    // Filtra metas cujas etapas pertencem ao escopo do colaborador
+    const applicableMetas = metas.filter(
+      (m) => allActiveStageIds.includes(m.etapa_id) && m.is_active !== false,
+    )
+
+    return applicableMetas.map((meta) =>
+      calculateMetaProgress(meta, user.id, user.name || 'Colaborador', tarefas, metrics),
+    )
+  }, [metas, allActiveStageIds, user?.id, user?.name, tarefas, metrics])
+
+  // Disparar conquista automática quando atinge a meta
+  useEffect(() => {
+    if (!user?.id) return
+    myApplicableMetasProgress.forEach((p) => {
+      if (p.isAtingida) {
+        claimMetaConquista(p.meta.id, user.id, user.name || 'Colaborador')
+      }
+    })
+  }, [myApplicableMetasProgress, user?.id, user?.name, claimMetaConquista])
 
   const TaskCard = ({
     task,
@@ -291,6 +329,110 @@ export default function MeuDia() {
           </Card>
         )}
       </div>
+
+      {/* Bloco de Metas & Prêmios em Dinheiro (SIGILO: Só aparece se o Master tiver criado metas para as etapas do colaborador) */}
+      {myApplicableMetasProgress.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+                <Trophy className="w-5 h-5 text-amber-500" /> Suas Metas & Prêmios em Dinheiro
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Acompanhe suas metas de esteira vigentes. Atingindo o alvo, seu prêmio em R$ é
+                garantido.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 font-medium">
+              <Coins className="w-4 h-4" /> Bonificação Individual
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {myApplicableMetasProgress.map((prog) => {
+              const stage = stages.find((s) => s.id === prog.meta.etapa_id)
+
+              return (
+                <Card
+                  key={prog.meta.id}
+                  className={cn(
+                    'border shadow-sm transition-all relative overflow-hidden bg-card',
+                    prog.isAtingida
+                      ? 'border-emerald-500/50 bg-gradient-to-br from-card to-emerald-500/5 ring-1 ring-emerald-500/30'
+                      : 'border-border hover:border-primary/40',
+                  )}
+                >
+                  {prog.isAtingida && (
+                    <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-bl-lg flex items-center gap-1 shadow-xs">
+                      <Sparkles className="w-3 h-3" /> Meta atingida 🏆
+                    </div>
+                  )}
+
+                  <CardHeader className="pb-2 pt-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <Badge variant="outline" className="text-[10px] bg-muted/40 font-mono">
+                          [{prog.meta.etapa_id}. {stage?.shortName || `Etapa ${prog.meta.etapa_id}`}
+                          ]
+                        </Badge>
+                        <CardTitle className="text-base font-bold text-foreground">
+                          {prog.meta.titulo}
+                        </CardTitle>
+                      </div>
+                    </div>
+                    {prog.meta.descricao && (
+                      <CardDescription className="text-xs line-clamp-2">
+                        {prog.meta.descricao}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+
+                  <CardContent className="space-y-3 pt-1">
+                    <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Coins className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-300">
+                          Prêmio em Dinheiro:
+                        </span>
+                      </div>
+                      <span className="text-base font-bold font-mono text-emerald-600">
+                        {formatBRL(prog.meta.premio_valor)}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground font-medium">
+                          {METRICA_LABELS[prog.meta.tipo_metrica] || 'Progresso'}:
+                        </span>
+                        <span className="font-mono font-semibold text-foreground">
+                          {prog.labelAtual} /{' '}
+                          <span className="text-muted-foreground">alvo {prog.labelAlvo}</span>
+                        </span>
+                      </div>
+                      <Progress
+                        value={prog.percentual}
+                        indicatorColor={prog.isAtingida ? 'bg-emerald-500' : 'bg-primary'}
+                        className="h-2.5"
+                      />
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                        <span>{prog.percentual}% concluído</span>
+                        {prog.isAtingida ? (
+                          <span className="text-emerald-600 font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Prêmio Garantido!
+                          </span>
+                        ) : (
+                          <span>Vigência até {prog.meta.data_fim}</span>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       <div className="space-y-8">
         {/* Bloco 1: Ordens e Tarefas atribuídas pelo Master diretamente a este colaborador */}

@@ -40,16 +40,46 @@ import {
   ShieldAlert,
   UserCheck,
   Flame,
+  Trophy,
+  Coins,
+  Sparkles,
 } from 'lucide-react'
 import usePipelineAccess from '@/stores/usePipelineAccess'
 import useAuthStore from '@/stores/useAuthStore'
 import { useToast } from '@/hooks/use-toast'
 import { DailyMetricItem } from '@/types/pipeline'
+import { calculateMetaProgress, formatBRL } from '@/utils/metaCalculations'
 
 export default function DesempenhoEquipe() {
-  const { metrics, formalRecords, addFormalRecord } = usePipelineAccess()
-  const { profileLevel, user } = useAuthStore()
+  const {
+    metrics,
+    formalRecords,
+    addFormalRecord,
+    metas,
+    tarefas,
+    stages,
+    allActiveStageIds,
+    claimMetaConquista,
+  } = usePipelineAccess()
+  const { profileLevel, user, role } = useAuthStore()
   const { toast } = useToast()
+
+  const isMasterOrAdmin =
+    role === 'Administrador' ||
+    profileLevel === 'Diretor' ||
+    profileLevel === 'Gestor' ||
+    user?.id === 'u1'
+
+  // Metas do colaborador logado (se não for Master)
+  const myMetasProgress = useMemo(() => {
+    if (!user?.id || isMasterOrAdmin) return []
+    const applicable = metas.filter(
+      (m) => allActiveStageIds.includes(m.etapa_id) && m.is_active !== false,
+    )
+    return applicable.map((m) =>
+      calculateMetaProgress(m, user.id, user.name || 'Colaborador', tarefas, metrics),
+    )
+  }, [metas, allActiveStageIds, user?.id, user?.name, tarefas, metrics, isMasterOrAdmin])
 
   const [periodo, setPeriodo] = useState<'semana' | 'mes' | 'trimestre'>('mes')
 
@@ -257,6 +287,75 @@ export default function DesempenhoEquipe() {
           </div>
         </div>
       </div>
+
+      {/* Bloco de Metas & Premiações Pessoais do Colaborador (quando não for Master, só vê as suas) */}
+      {!isMasterOrAdmin && myMetasProgress.length > 0 && (
+        <Card className="shadow-sm border border-emerald-500/30 bg-emerald-500/5">
+          <CardHeader className="pb-3 border-b border-emerald-500/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-emerald-600" />
+                  Suas Metas & Prêmios em Dinheiro
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Apenas metas atribuídas às suas etapas operacionais são visíveis. Conquistas
+                  garantem bonificação direta.
+                </CardDescription>
+              </div>
+              <Badge className="bg-emerald-600 text-white text-xs gap-1">
+                <Coins className="w-3.5 h-3.5" /> Prêmio Individual
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {myMetasProgress.map((prog) => {
+              const stg = stages.find((s) => s.id === prog.meta.etapa_id)
+              return (
+                <div
+                  key={prog.meta.id}
+                  className="p-3.5 rounded-lg border bg-card text-xs flex flex-col justify-between gap-3 shadow-2xs"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-[10px] font-mono">
+                        [{prog.meta.etapa_id}. {stg?.shortName || `Etapa ${prog.meta.etapa_id}`}]
+                      </Badge>
+                      <span className="font-bold text-emerald-600 font-mono text-sm">
+                        {formatBRL(prog.meta.premio_valor)}
+                      </span>
+                    </div>
+                    <h4 className="font-semibold text-foreground text-sm">{prog.meta.titulo}</h4>
+                    {prog.meta.descricao && (
+                      <p className="text-muted-foreground line-clamp-1">{prog.meta.descricao}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 pt-1 border-t">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Progresso:</span>
+                      <span className="font-mono font-semibold text-foreground">
+                        {prog.labelAtual} / {prog.labelAlvo} ({prog.percentual}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                      <div
+                        className={prog.isAtingida ? 'bg-emerald-500 h-2' : 'bg-primary h-2'}
+                        style={{ width: `${prog.percentual}%` }}
+                      />
+                    </div>
+                    {prog.isAtingida && (
+                      <div className="text-emerald-600 font-bold text-[11px] flex items-center gap-1 pt-0.5">
+                        <Sparkles className="w-3.5 h-3.5" /> Meta Batida! Prêmio garantido.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabela de Ranking Consolidado */}
       <Card className="shadow-sm border">

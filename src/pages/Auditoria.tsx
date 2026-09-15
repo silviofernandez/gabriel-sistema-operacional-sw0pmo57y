@@ -32,6 +32,8 @@ import {
   Eye,
   FileText,
   UserCheck,
+  Trophy,
+  Coins,
 } from 'lucide-react'
 import usePipelineAccess from '@/stores/usePipelineAccess'
 import { AuditLogItem } from '@/types/pipeline'
@@ -185,6 +187,18 @@ export default function Auditoria() {
             className="gap-1 text-blue-600 border-blue-500/30 bg-blue-500/10 font-mono text-[11px]"
           >
             Avançou Etapa
+          </Badge>
+        )
+      case 'gerenciou_meta':
+        return (
+          <Badge className="bg-purple-600 hover:bg-purple-700 text-white gap-1 font-mono text-[11px]">
+            <Trophy className="w-3 h-3" /> Gerenciou Meta
+          </Badge>
+        )
+      case 'atingiu_meta':
+        return (
+          <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 font-mono text-[11px]">
+            <Coins className="w-3 h-3" /> Atingiu Meta 🏆
           </Badge>
         )
       default:
@@ -344,6 +358,8 @@ export default function Auditoria() {
                 </SelectItem>
                 <SelectItem value="avancou_etapa">Avançou Etapa</SelectItem>
                 <SelectItem value="concluiu_tarefa">Concluiu Tarefa</SelectItem>
+                <SelectItem value="gerenciou_meta">Gerenciou Meta (Master)</SelectItem>
+                <SelectItem value="atingiu_meta">Atingiu Meta & Prêmio (Conquista)</SelectItem>
                 <SelectItem value="visualizou">Visualizou Etapa Normal</SelectItem>
                 <SelectItem value="editou">Editou Dados</SelectItem>
               </SelectContent>

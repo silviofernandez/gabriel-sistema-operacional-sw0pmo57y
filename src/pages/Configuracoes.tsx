@@ -59,7 +59,7 @@ export default function Configuracoes() {
               value="goals"
               className="data-[state=active]:bg-card data-[state=active]:shadow-sm text-sm px-5 py-2.5 font-medium transition-all"
             >
-              Metas & OKRs
+              Metas & Prêmios
             </TabsTrigger>
             <TabsTrigger
               value="import"

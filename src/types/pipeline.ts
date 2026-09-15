@@ -131,6 +131,8 @@ export type AuditActionType =
   | 'reabriu_tarefa'
   | 'acessou_com_permissao_extra'
   | 'tentou_acesso_negado'
+  | 'gerenciou_meta'
+  | 'atingiu_meta'
 
 export interface AuditLogItem {
   id: string
@@ -252,6 +254,28 @@ export interface TarefaOrdemItem {
   ai_urgency?: string
   ai_risk_flag?: boolean
   checklists?: { id: string; text: string; done: boolean }[]
+  created?: string
+  updated?: string
+}
+
+export type MetaMetricaTipo =
+  | 'tarefas_concluidas'
+  | 'sla_prazo_pct'
+  | 'score_minimo'
+  | 'contratos_avancados'
+
+export interface MetaPremioItem {
+  id: string
+  etapa_id: string // "1" .. "12"
+  titulo: string
+  descricao?: string
+  tipo_metrica: MetaMetricaTipo
+  valor_alvo: number
+  premio_valor: number // R$
+  data_inicio: string // YYYY-MM-DD
+  data_fim: string // YYYY-MM-DD
+  criado_por?: string
+  is_active?: boolean
   created?: string
   updated?: string
 }

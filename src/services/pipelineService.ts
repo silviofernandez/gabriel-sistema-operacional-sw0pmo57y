@@ -5,6 +5,7 @@ import {
   DailyMetricItem,
   EmployeeCoverage,
   FormalRecordItem,
+  MetaPremioItem,
   NotificationItem,
   StagePermissionItem,
 } from '@/types/pipeline'
@@ -266,6 +267,59 @@ export const pipelineService = {
       return true
     } catch (err) {
       console.error('Erro ao deletar tarefa_ordem:', err)
+      return false
+    }
+  },
+
+  // 8. Metas & Prêmios (Gestão restrita ao Master e consulta individualizada)
+  async fetchMetasPremios(etapaId?: string): Promise<MetaPremioItem[]> {
+    try {
+      const filter = etapaId ? `etapa_id = '${etapaId}'` : ''
+      const records = await pb.collection('metas_premios').getFullList<MetaPremioItem>({
+        filter,
+        sort: 'etapa_id',
+      })
+      return records
+    } catch (err) {
+      console.warn('Erro ao carregar metas_premios:', err)
+      return []
+    }
+  },
+
+  async createMetaPremio(
+    data: Omit<MetaPremioItem, 'id' | 'created' | 'updated'>,
+  ): Promise<MetaPremioItem | null> {
+    try {
+      const record = await pb.collection('metas_premios').create<MetaPremioItem>({
+        ...data,
+        is_active: data.is_active !== false,
+      })
+      return record
+    } catch (err) {
+      console.error('Erro ao criar meta_premio:', err)
+      return null
+    }
+  },
+
+  async updateMetaPremio(
+    id: string,
+    updates: Partial<MetaPremioItem>,
+  ): Promise<MetaPremioItem | null> {
+    try {
+      const record = await pb.collection('metas_premios').update<MetaPremioItem>(id, updates)
+      return record
+    } catch (err) {
+      console.error('Erro ao atualizar meta_premio:', err)
+      return null
+    }
+  },
+
+  async deleteMetaPremio(id: string): Promise<boolean> {
+    try {
+      await pb.collection('metas_premios').delete(id)
+      return true
+    } catch (err) {
+      console.error('Erro ao deletar meta_premio:', err)
       return false
     }
   },

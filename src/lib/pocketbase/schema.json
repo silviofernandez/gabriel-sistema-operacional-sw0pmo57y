@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T23:06:59.018Z",
+  "generatedAt": "2026-09-15T14:09:14.376Z",
   "collections": [
     {
       "name": "users",
@@ -81,7 +81,9 @@
             "concluiu_tarefa",
             "reabriu_tarefa",
             "acessou_com_permissao_extra",
-            "tentou_acesso_negado"
+            "tentou_acesso_negado",
+            "gerenciou_meta",
+            "atingiu_meta"
           ]
         },
         {
@@ -783,6 +785,103 @@
       "indexes": [
         "CREATE INDEX idx_tarefas_resp ON tarefas_ordens (responsavel_id, status)",
         "CREATE INDEX idx_tarefas_etapa ON tarefas_ordens (etapa_id)"
+      ]
+    },
+    {
+      "name": "metas_premios",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "etapa_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_metrica",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "tarefas_concluidas",
+            "sla_prazo_pct",
+            "score_minimo",
+            "contratos_avancados"
+          ]
+        },
+        {
+          "name": "valor_alvo",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "premio_valor",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_inicio",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_fim",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_metas_etapa ON metas_premios (etapa_id)",
+        "CREATE INDEX idx_metas_datas ON metas_premios (data_inicio, data_fim)"
       ]
     }
   ]
