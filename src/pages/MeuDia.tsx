@@ -1,589 +1,382 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
+import { useState, useMemo } from 'react'
 import {
-  Clock,
-  AlertCircle,
-  FileText,
-  PlayCircle,
   AlertTriangle,
-  Bot,
-  Award,
-  TrendingUp,
+  Clock,
   CheckCircle2,
-  Trophy,
-  Coins,
-  Sparkles,
+  Calendar,
+  UserCheck,
+  Building,
+  ArrowRight,
+  TrendingUp,
+  Inbox,
+  Filter,
+  Users,
+  Briefcase,
 } from 'lucide-react'
+import { useProcessos } from '@/stores/useProcessosStore'
 import useAuthStore from '@/stores/useAuthStore'
-import usePipelineAccess from '@/stores/usePipelineAccess'
-import { db } from '@/lib/mock-data'
-import { Task } from '@/types'
-import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog'
+import { AtividadeCaso, CasoProcesso } from '@/types/processos'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { CasoDetailDialog } from '@/components/processos/CasoDetailDialog'
+import { formatarDataHoraBR } from '@/utils/expedienteSLA'
 import { cn } from '@/lib/utils'
-import { calculateMetaProgress, formatBRL, METRICA_LABELS } from '@/utils/metaCalculations'
 
-export default function MeuDia() {
+export function MeuDia() {
   const { user } = useAuthStore()
-  const {
-    metrics,
-    myActiveCoverage,
-    assignedStageIds,
-    temporaryStageIds,
-    allActiveStageIds,
-    stages,
-    tarefas,
-    metas,
-    claimMetaConquista,
-    updateTarefaStatus,
-  } = usePipelineAccess()
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const { casos, selectedUnidadeFiltro, setSelectedUnidadeFiltro } = useProcessos()
 
-  // Métricas do usuário logado
-  const myMetric = useMemo(() => {
-    return (
-      metrics.find((m) => m.colaborador_id === user?.id) || {
-        score_total: 87,
-        classificacao: 'Bom',
-        score_sla: 91,
-        tarefas_reabertas: 1,
-        tarefas_total: 38,
-        acessos_adjacentes: 2,
-      }
-    )
-  }, [metrics, user?.id])
+  const [selectedCaso, setSelectedCaso] = useState<CasoProcesso | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [funcaoFiltro, setFuncaoFiltro] = useState<string>('Todas')
 
-  const coverageStageNames = useMemo(() => {
-    return stages
-      .filter((s) => temporaryStageIds.includes(s.id))
-      .map((s) => s.shortName)
-      .join(', ')
-  }, [stages, temporaryStageIds])
+  const now = new Date()
+  const todayStr = now.toISOString().slice(0, 10)
 
-  // Tarefas da coleção tarefas_ordens (atribuídas pelo Master) exclusivamente para o colaborador logado
-  const myOrdens = useMemo(
-    () => tarefas.filter((t) => t.responsavel_id === user?.id),
-    [tarefas, user?.id],
-  )
-
-  // Tarefas locais mockadas (fallback sincronizado com o ID do usuário logado)
-  const myMockTasks = useMemo(
-    () => db.tasks.filter((t) => (t.assigneeIds || []).includes(user?.id || '')),
-    [user?.id],
-  )
-
-  const todayStr = new Date().toLocaleDateString('pt-BR')
-  const parseDate = (dStr?: string) => {
-    if (!dStr) return 0
-    const [datePart] = dStr.split(' ') // Safely handle formatting like "12/10/2023 10:00"
-    const parts = (datePart || '').split('/')
-    if (parts.length === 3) {
-      return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime()
-    }
-    return 0
-  }
-  const todayTime = parseDate(todayStr)
-
-  // Separação das ordens do backend
-  const overdueOrdens = myOrdens.filter(
-    (t) =>
-      t.status !== 'Concluída' &&
-      (t.status === 'Atrasada' || (t.prazo && parseDate(t.prazo) < todayTime)),
-  )
-  const todayOrdens = myOrdens.filter(
-    (t) =>
-      t.status !== 'Concluída' &&
-      !overdueOrdens.includes(t) &&
-      ((t.prazo || '').includes(todayStr) ||
-        t.status === 'Em Andamento' ||
-        t.status === 'Pendente'),
-  )
-  const completedOrdens = myOrdens.filter((t) => t.status === 'Concluída')
-
-  // Metas aplicáveis ao colaborador logado:
-  // SIGILO: Só aparecem metas para as etapas que ele de fato opera (assigned ou temporary).
-  // Se não houver metas criadas pelo Master para essas etapas, o array é vazio (sem placeholders expostos).
-  const myApplicableMetasProgress = useMemo(() => {
-    if (!user?.id) return []
-
-    // Filtra metas cujas etapas pertencem ao escopo do colaborador
-    const applicableMetas = metas.filter(
-      (m) => allActiveStageIds.includes(m.etapa_id) && m.is_active !== false,
-    )
-
-    return applicableMetas.map((meta) =>
-      calculateMetaProgress(meta, user.id, user.name || 'Colaborador', tarefas, metrics),
-    )
-  }, [metas, allActiveStageIds, user?.id, user?.name, tarefas, metrics])
-
-  // Disparar conquista automática quando atinge a meta
-  useEffect(() => {
-    if (!user?.id) return
-    myApplicableMetasProgress.forEach((p) => {
-      if (p.isAtingida) {
-        claimMetaConquista(p.meta.id, user.id, user.name || 'Colaborador')
-      }
+  // 1. Atrasadas: prazo vencido e não resolvidas
+  const casosAtrasados = useMemo(() => {
+    return casos.filter((c) => {
+      if (c.status === 'Resolvido' || c.status === 'Cancelado') return false
+      if (!c.prazo_resolucao) return false
+      return new Date(c.prazo_resolucao) < now
     })
-  }, [myApplicableMetasProgress, user?.id, user?.name, claimMetaConquista])
+  }, [casos, now])
 
-  const TaskCard = ({
-    task,
-    variant = 'default',
-  }: {
-    task: Task
-    variant?: 'overdue' | 'today' | 'progress' | 'default'
-  }) => {
-    const property = db.properties.find((p) => p.id === task.propertyId)
-    const checklists = db.checklists.filter((c) => c.taskId === task.id)
-    const checkCount = checklists.length
-    const checkCompleted = checklists.filter((c) => c.isCompleted).length
+  // 2. Para hoje: com prazo de resolução ou próxima ação para hoje
+  const casosParaHoje = useMemo(() => {
+    return casos.filter((c) => {
+      if (c.status === 'Resolvido' || c.status === 'Cancelado') return false
+      if (!c.prazo_resolucao) return false
+      const d = c.prazo_resolucao.slice(0, 10)
+      return d === todayStr
+    })
+  }, [casos, todayStr])
 
-    return (
-      <Card
-        onClick={() => setSelectedTask(task)}
-        className={cn(
-          'flex flex-col sm:flex-row sm:items-center p-4 hover:shadow-md transition-all cursor-pointer group border-l-4 bg-card hover:bg-muted/30 border-y border-r gap-4 relative overflow-hidden',
-          variant === 'overdue'
-            ? 'border-l-destructive border-destructive/20'
-            : variant === 'progress'
-              ? 'border-l-primary border-primary/20'
-              : 'border-l-warning border-border',
-          task.aiRiskFlag && 'bg-destructive/5 hover:bg-destructive/10 border-destructive/30',
-        )}
-      >
-        <div className="flex items-center flex-1 min-w-0 gap-4">
-          <div
+  // 3. Aguardando aprovação: alçada de gestor ou aprovação pendente
+  const casosAguardandoAprovacao = useMemo(() => {
+    return casos.filter((c) => c.status === 'Aguardando aprovação interna')
+  }, [casos])
+
+  // 4. Retornos prometidos: com prazo_prometido_cliente definido
+  const casosRetornosPrometidos = useMemo(() => {
+    return casos.filter(
+      (c) => c.status !== 'Resolvido' && c.status !== 'Cancelado' && !!c.prazo_prometido_cliente,
+    )
+  }, [casos])
+
+  // 5. Aguardando terceiros: proprietário, prestador ou cliente
+  const casosAguardandoTerceiros = useMemo(() => {
+    return casos.filter(
+      (c) =>
+        c.status === 'Aguardando cliente' ||
+        c.status === 'Aguardando proprietário' ||
+        c.status === 'Aguardando prestador',
+    )
+  }, [casos])
+
+  // 6. Próximos vencimentos: prazo nos próximos 3 dias
+  const casosProximosVencimentos = useMemo(() => {
+    const daqui3dias = new Date(now.getTime() + 3 * 86400000)
+    return casos.filter((c) => {
+      if (c.status === 'Resolvido' || c.status === 'Cancelado') return false
+      if (!c.prazo_resolucao) return false
+      const d = new Date(c.prazo_resolucao)
+      return d > now && d <= daqui3dias
+    })
+  }, [casos, now])
+
+  const renderCasoCard = (c: CasoProcesso) => (
+    <Card
+      key={c.id}
+      onClick={() => {
+        setSelectedCaso(c)
+        setIsDetailOpen(true)
+      }}
+      className="p-4 cursor-pointer hover:shadow-md transition-all border bg-card flex flex-col justify-between gap-3 group"
+    >
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-xs font-bold text-primary group-hover:underline">
+              {c.protocolo}
+            </span>
+            <Badge variant="outline" className="text-[10px] font-mono py-0">
+              {c.unidade}
+            </Badge>
+          </div>
+          <Badge
             className={cn(
-              'shrink-0 transition-colors',
-              variant === 'overdue'
-                ? 'text-destructive'
-                : variant === 'progress'
-                  ? 'text-primary'
-                  : 'text-warning',
+              'text-[10px] py-0',
+              c.prioridade === 'Urgente'
+                ? 'bg-destructive text-destructive-foreground'
+                : c.prioridade === 'Alta'
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-muted text-muted-foreground',
             )}
           >
-            {variant === 'overdue' ? (
-              <AlertCircle className="h-6 w-6" />
-            ) : variant === 'progress' ? (
-              <PlayCircle className="h-6 w-6" />
-            ) : (
-              <Clock className="h-6 w-6" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-base truncate text-foreground flex items-center gap-2">
-              {task.title}
-              {task.aiRiskFlag && (
-                <span className="flex items-center gap-1 text-[10px] bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">
-                  <AlertTriangle className="w-3 h-3" /> Risco
-                </span>
-              )}
-            </h3>
-            <p className="text-sm text-muted-foreground truncate">
-              {property?.title || 'Sem imóvel vinculado'}
-            </p>
-          </div>
+            {c.prioridade}
+          </Badge>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 shrink-0 mt-2 sm:mt-0 ml-10 sm:ml-0">
-          {checkCount > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-              <FileText className="w-3.5 h-3.5" />
-              <span>
-                {checkCompleted}/{checkCount} checklist
-              </span>
-            </div>
-          )}
+        <h4 className="font-semibold text-sm text-foreground line-clamp-2 leading-snug">
+          {c.titulo}
+        </h4>
 
-          <div className="flex items-center gap-2">
-            {task.aiUrgency && task.aiUrgency !== 'Normal' && (
-              <Badge
-                variant={task.aiUrgency === 'Crítica' ? 'destructive' : 'warning'}
-                className="font-mono text-[10px] uppercase gap-1"
-              >
-                <Bot className="w-3 h-3" /> {task.aiUrgency}
-              </Badge>
-            )}
-            <Badge variant="outline" className="font-mono text-xs bg-background">
-              {task.deadline || 'S/ Prazo'}
-            </Badge>
-            <Badge
-              variant={
-                task.priority === 'Crítica' || task.priority === 'Alta'
-                  ? 'destructive'
-                  : task.priority === 'Média'
-                    ? 'warning'
-                    : 'secondary'
-              }
-            >
-              {task.priority}
-            </Badge>
-          </div>
-        </div>
-      </Card>
-    )
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-8 animate-fade-in-up pt-4 pb-12 w-full">
-      <div className="flex items-center justify-between border-b pb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">Meu Dia</h1>
-          <p className="text-muted-foreground">
-            Olá, {user?.name?.split(' ')[0] || 'Usuário'}. Aqui está o seu foco operacional para
-            hoje.
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <p>
+            <strong className="text-foreground">Para quem:</strong> {c.solicitante_nome}
+          </p>
+          <p>
+            <strong className="text-foreground">O que fazer:</strong>{' '}
+            {c.proxima_acao || 'Dar andamento na fase atual.'}
+          </p>
+          <p>
+            <strong className="text-foreground">Fase atual:</strong> {c.fase_atual_nome}
           </p>
         </div>
-        <div className="hidden md:flex">
-          <img
-            src="https://img.usecurling.com/i?q=target&color=multicolor&shape=lineal-color"
-            alt="Target"
-            className="h-16 opacity-80 mix-blend-multiply"
-          />
+      </div>
+
+      <div className="flex items-center justify-between pt-2 border-t text-[11px] text-muted-foreground font-mono">
+        <span className="flex items-center gap-1 text-primary">
+          <Clock className="w-3.5 h-3.5" />
+          Até {c.prazo_resolucao ? formatarDataHoraBR(c.prazo_resolucao).slice(0, 16) : 'S/ prazo'}
+        </span>
+        <span className="text-foreground font-medium group-hover:text-primary flex items-center gap-1">
+          Abrir <ArrowRight className="w-3 h-3" />
+        </span>
+      </div>
+    </Card>
+  )
+
+  return (
+    <div className="flex flex-col gap-6 animate-fade-in-up max-w-7xl mx-auto w-full pb-12">
+      {/* Header com identificação do usuário e múltiplas funções */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b pb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <Calendar className="w-8 h-8 text-primary" /> Meu Dia
+            </h1>
+            <Badge
+              variant="outline"
+              className="bg-primary/5 text-primary border-primary/20 text-xs"
+            >
+              Etapa 1
+            </Badge>
+          </div>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+            Visão individual agrupada de atividades para o colaborador{' '}
+            <strong className="text-foreground">{user.name || 'Carlos Silva'}</strong> (suporta
+            múltiplas funções simultâneas).
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-muted-foreground" />
+            <Select value={funcaoFiltro} onValueChange={setFuncaoFiltro}>
+              <SelectTrigger className="w-[180px] bg-background text-xs">
+                <SelectValue placeholder="Filtrar por Função" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todas">Todas as minhas funções</SelectItem>
+                <SelectItem value="Atendimento">Atendimento</SelectItem>
+                <SelectItem value="Gestor">Gestão Geral</SelectItem>
+                <SelectItem value="Contratos">Contratos</SelectItem>
+                <SelectItem value="Financeiro">Financeiro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Select
+            value={selectedUnidadeFiltro}
+            onValueChange={(val) => setSelectedUnidadeFiltro(val as any)}
+          >
+            <SelectTrigger className="w-[160px] bg-background text-xs">
+              <SelectValue placeholder="Unidade Gabriel" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todas">Todas as Cidades</SelectItem>
+              <SelectItem value="Jaú">Jaú</SelectItem>
+              <SelectItem value="Pederneiras">Pederneiras</SelectItem>
+              <SelectItem value="Lençóis Paulista">Lençóis Paulista</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Card: Seu Desempenho Este Mês */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="col-span-1 md:col-span-2 shadow-sm border bg-gradient-to-r from-card to-muted/30">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-primary" /> Seu Desempenho Este Mês
-              </CardTitle>
-              <Badge
-                className={
-                  myMetric.score_total >= 90
-                    ? 'bg-emerald-600 text-white'
-                    : myMetric.score_total >= 70
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-orange-500 text-white'
-                }
-              >
-                Score: {myMetric.score_total}/100 {myMetric.classificacao}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-3 pt-1 text-center">
-              <div className="p-2 rounded-lg bg-background border">
-                <span className="text-xs text-muted-foreground block">SLA no Prazo</span>
-                <span className="text-xl font-bold font-mono text-emerald-600">
-                  {myMetric.score_sla}%
-                </span>
-              </div>
-              <div className="p-2 rounded-lg bg-background border">
-                <span className="text-xs text-muted-foreground block">Retrabalho</span>
-                <span className="text-xl font-bold font-mono text-foreground">
-                  {Math.round((myMetric.tarefas_reabertas / (myMetric.tarefas_total || 1)) * 100)}%
-                </span>
-              </div>
-              <div className="p-2 rounded-lg bg-background border">
-                <span className="text-xs text-muted-foreground block">Tarefas</span>
-                <span className="text-xl font-bold font-mono text-foreground">
-                  {myMetric.tarefas_total}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-3 text-xs text-emerald-600 font-medium">
-              <TrendingUp className="w-4 h-4" /> Evolução: ↑ +5 pontos vs mês anterior
-            </div>
-          </CardContent>
-        </Card>
+      {/* 6 Agrupamentos da Spec em Abas ou Painel */}
+      <Tabs defaultValue="atrasadas" className="space-y-6">
+        <TabsList className="bg-muted p-1 grid grid-cols-2 md:grid-cols-6 gap-1 h-auto">
+          <TabsTrigger
+            value="atrasadas"
+            className="text-xs py-2 gap-1.5 data-[state=active]:bg-destructive data-[state=active]:text-white font-semibold"
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Atrasadas ({casosAtrasados.length})
+          </TabsTrigger>
+          <TabsTrigger value="hoje" className="text-xs py-2 gap-1.5 font-semibold">
+            <Clock className="w-3.5 h-3.5 text-primary" />
+            Para hoje ({casosParaHoje.length})
+          </TabsTrigger>
+          <TabsTrigger value="aprovacao" className="text-xs py-2 gap-1.5 font-semibold">
+            <UserCheck className="w-3.5 h-3.5 text-orange-500" />
+            Aguardando aprovação ({casosAguardandoAprovacao.length})
+          </TabsTrigger>
+          <TabsTrigger value="prometidos" className="text-xs py-2 gap-1.5 font-semibold">
+            <Inbox className="w-3.5 h-3.5 text-blue-500" />
+            Retornos prometidos ({casosRetornosPrometidos.length})
+          </TabsTrigger>
+          <TabsTrigger value="terceiros" className="text-xs py-2 gap-1.5 font-semibold">
+            <Users className="w-3.5 h-3.5 text-purple-500" />
+            Aguardando terceiros ({casosAguardandoTerceiros.length})
+          </TabsTrigger>
+          <TabsTrigger value="proximos" className="text-xs py-2 gap-1.5 font-semibold">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+            Próximos vencimentos ({casosProximosVencimentos.length})
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Card de Cobertura Ativa se houver */}
-        {myActiveCoverage ? (
-          <Card className="shadow-sm border border-amber-500/30 bg-amber-500/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-amber-600" /> Cobertura Ativa
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1 text-xs">
-              <p className="font-semibold text-foreground">
-                Você está cobrindo: {coverageStageNames || 'Vistoria de Entrada'}
-              </p>
-              <p className="text-muted-foreground">
-                Titular: {myActiveCoverage.colaborador_ausente_nome}
-              </p>
-              <Badge
-                variant="outline"
-                className="bg-background text-[10px] mt-1 border-amber-500/30"
-              >
-                Até {new Date(myActiveCoverage.data_fim_prevista).toLocaleDateString('pt-BR')}
-              </Badge>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="shadow-sm border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Escopo de Atuação
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs text-muted-foreground space-y-1">
-              <p className="text-foreground font-medium">Etapas da Esteira Atribuídas</p>
-              <p>Operando em conformidade com as regras de acesso da Gabriel.</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Bloco de Metas & Prêmios em Dinheiro (SIGILO: Só aparece se o Master tiver criado metas para as etapas do colaborador) */}
-      {myApplicableMetasProgress.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
-            <div>
-              <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
-                <Trophy className="w-5 h-5 text-amber-500" /> Suas Metas & Prêmios em Dinheiro
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Acompanhe suas metas de esteira vigentes. Atingindo o alvo, seu prêmio em R$ é
-                garantido.
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 font-medium">
-              <Coins className="w-4 h-4" /> Bonificação Individual
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {myApplicableMetasProgress.map((prog) => {
-              const stage = stages.find((s) => s.id === prog.meta.etapa_id)
-
-              return (
-                <Card
-                  key={prog.meta.id}
-                  className={cn(
-                    'border shadow-sm transition-all relative overflow-hidden bg-card',
-                    prog.isAtingida
-                      ? 'border-emerald-500/50 bg-gradient-to-br from-card to-emerald-500/5 ring-1 ring-emerald-500/30'
-                      : 'border-border hover:border-primary/40',
-                  )}
-                >
-                  {prog.isAtingida && (
-                    <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-bl-lg flex items-center gap-1 shadow-xs">
-                      <Sparkles className="w-3 h-3" /> Meta atingida 🏆
-                    </div>
-                  )}
-
-                  <CardHeader className="pb-2 pt-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        <Badge variant="outline" className="text-[10px] bg-muted/40 font-mono">
-                          [{prog.meta.etapa_id}. {stage?.shortName || `Etapa ${prog.meta.etapa_id}`}
-                          ]
-                        </Badge>
-                        <CardTitle className="text-base font-bold text-foreground">
-                          {prog.meta.titulo}
-                        </CardTitle>
-                      </div>
-                    </div>
-                    {prog.meta.descricao && (
-                      <CardDescription className="text-xs line-clamp-2">
-                        {prog.meta.descricao}
-                      </CardDescription>
-                    )}
-                  </CardHeader>
-
-                  <CardContent className="space-y-3 pt-1">
-                    <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Coins className="w-4 h-4 text-emerald-600" />
-                        <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-300">
-                          Prêmio em Dinheiro:
-                        </span>
-                      </div>
-                      <span className="text-base font-bold font-mono text-emerald-600">
-                        {formatBRL(prog.meta.premio_valor)}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground font-medium">
-                          {METRICA_LABELS[prog.meta.tipo_metrica] || 'Progresso'}:
-                        </span>
-                        <span className="font-mono font-semibold text-foreground">
-                          {prog.labelAtual} /{' '}
-                          <span className="text-muted-foreground">alvo {prog.labelAlvo}</span>
-                        </span>
-                      </div>
-                      <Progress
-                        value={prog.percentual}
-                        indicatorColor={prog.isAtingida ? 'bg-emerald-500' : 'bg-primary'}
-                        className="h-2.5"
-                      />
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
-                        <span>{prog.percentual}% concluído</span>
-                        {prog.isAtingida ? (
-                          <span className="text-emerald-600 font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Prêmio Garantido!
-                          </span>
-                        ) : (
-                          <span>Vigência até {prog.meta.data_fim}</span>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      <div className="space-y-8">
-        {/* Bloco 1: Ordens e Tarefas atribuídas pelo Master diretamente a este colaborador */}
-        <section className="space-y-4">
+        {/* 1. Atrasadas */}
+        <TabsContent value="atrasadas" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold flex items-center gap-2 text-foreground">
-              <Clock className="w-5 h-5 text-primary" /> Minhas Tarefas de Hoje ({user?.name})
-              <Badge
-                variant="outline"
-                className="ml-1 bg-primary/10 text-primary border-primary/20"
-              >
-                {myOrdens.length} atribuída{myOrdens.length > 1 ? 's' : ''} pelo Master
-              </Badge>
-            </h2>
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-destructive" /> Demandas com Prazo Vencido
+            </h3>
             <span className="text-xs text-muted-foreground">
-              Apenas as tarefas atribuídas a você são visíveis
+              Prioridade máxima de atendimento e escalonamento
             </span>
           </div>
-
-          {myOrdens.length > 0 ? (
-            <div className="grid gap-3">
-              {myOrdens.map((ordem) => {
-                const stageObj = stages.find((s) => s.id === ordem.etapa_id)
-                const isConcluida = ordem.status === 'Concluída'
-                const isAtrasada = ordem.status === 'Atrasada'
-
-                return (
-                  <Card
-                    key={ordem.id}
-                    className={cn(
-                      'p-4 border-l-4 transition-all hover:shadow-sm bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4',
-                      isConcluida
-                        ? 'border-l-emerald-500 bg-muted/10 opacity-80'
-                        : isAtrasada
-                          ? 'border-l-destructive bg-destructive/5'
-                          : 'border-l-primary',
-                    )}
-                  >
-                    <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateTarefaStatus(
-                            ordem.id,
-                            isConcluida ? 'Em Andamento' : 'Concluída',
-                            isConcluida
-                              ? `Colaborador ${user?.name} reabriu a tarefa`
-                              : `Colaborador ${user?.name} concluiu a tarefa com sucesso`,
-                          )
-                        }
-                        className={cn(
-                          'mt-1 sm:mt-0 p-1.5 rounded-full transition-colors border',
-                          isConcluida
-                            ? 'bg-emerald-600 text-white border-emerald-600'
-                            : 'border-muted-foreground/30 hover:border-primary text-muted-foreground hover:text-primary',
-                        )}
-                        title={isConcluida ? 'Clique para reabrir tarefa' : 'Marcar como concluída'}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                      </button>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3
-                            className={cn(
-                              'font-semibold text-base text-foreground truncate',
-                              isConcluida && 'line-through text-muted-foreground',
-                            )}
-                          >
-                            {ordem.titulo}
-                          </h3>
-                          {ordem.ai_risk_flag && (
-                            <Badge variant="destructive" className="text-[10px] uppercase">
-                              <AlertTriangle className="w-3 h-3 mr-1" /> Risco
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-[11px] bg-background">
-                            [{ordem.etapa_id}. {stageObj?.shortName || `Etapa ${ordem.etapa_id}`}]
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                          {ordem.descricao || ordem.imovel_titulo || 'Sem observações'}
-                        </p>
-                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1">
-                          <span>Criado por: {ordem.criado_por || 'Master'}</span>
-                          {ordem.contrato_id && <span>Contrato: {ordem.contrato_id}</span>}
-                          {ordem.prazo && <span>Prazo: {ordem.prazo}</span>}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                      <Badge
-                        variant={
-                          ordem.prioridade === 'Crítica' || ordem.prioridade === 'Alta'
-                            ? 'destructive'
-                            : ordem.prioridade === 'Média'
-                              ? 'warning'
-                              : 'secondary'
-                        }
-                        className="text-xs"
-                      >
-                        {ordem.prioridade}
-                      </Badge>
-                      <Badge
-                        className={cn(
-                          'text-xs font-semibold',
-                          ordem.status === 'Concluída'
-                            ? 'bg-emerald-600 text-white'
-                            : ordem.status === 'Atrasada'
-                              ? 'bg-destructive text-destructive-foreground'
-                              : ordem.status === 'Em Andamento'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted text-muted-foreground',
-                        )}
-                      >
-                        {ordem.status}
-                      </Badge>
-                    </div>
-                  </Card>
-                )
-              })}
+          {casosAtrasados.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {casosAtrasados.map(renderCasoCard)}
             </div>
           ) : (
-            <div className="text-center p-8 border border-dashed rounded-xl bg-card text-muted-foreground shadow-sm text-sm">
-              Nenhuma tarefa atribuída a você no momento. Aguarde designações do Master no funil.
-            </div>
+            <Card className="p-8 text-center text-xs text-muted-foreground border-dashed">
+              Nenhuma atividade em atraso. Parabéns pelo cumprimento dos prazos!
+            </Card>
           )}
-        </section>
+        </TabsContent>
 
-        {/* Bloco 2: Tarefas Operacionais Adicionais */}
-        {myMockTasks.length > 0 && (
-          <section className="space-y-4 pt-4 border-t">
-            <h2 className="text-base font-semibold flex items-center gap-2 text-muted-foreground">
-              <PlayCircle className="w-4 h-4 text-primary" /> Outras Demandas Atribuídas (
-              {myMockTasks.length})
-            </h2>
-            <div className="grid gap-3">
-              {myMockTasks.map((task) => (
-                <TaskCard key={task.id} task={task} variant="progress" />
-              ))}
+        {/* 2. Para Hoje */}
+        <TabsContent value="hoje" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" /> Foco do Dia (Vencimento Hoje)
+            </h3>
+            <span className="text-xs text-muted-foreground">Conclua estas ações até as 18:00</span>
+          </div>
+          {casosParaHoje.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {casosParaHoje.map(renderCasoCard)}
             </div>
-          </section>
-        )}
-      </div>
+          ) : (
+            <Card className="p-8 text-center text-xs text-muted-foreground border-dashed">
+              Nenhum caso com prazo final para hoje.
+            </Card>
+          )}
+        </TabsContent>
 
-      <TaskDetailDialog
-        task={selectedTask}
-        open={!!selectedTask}
-        onOpenChange={(open) => !open && setSelectedTask(null)}
-      />
+        {/* 3. Aguardando Aprovação */}
+        <TabsContent value="aprovacao" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-orange-500" /> Pendências de Alçada & Aprovação do
+              Gestor
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              Exige parecer formal para desbloquear avanço
+            </span>
+          </div>
+          {casosAguardandoAprovacao.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {casosAguardandoAprovacao.map(renderCasoCard)}
+            </div>
+          ) : (
+            <Card className="p-8 text-center text-xs text-muted-foreground border-dashed">
+              Nenhuma aprovação pendente no momento.
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* 4. Retornos Prometidos */}
+        <TabsContent value="prometidos" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <Inbox className="w-4 h-4 text-blue-500" /> Retornos Prometidos ao Cliente
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              Compromisso firmado com o locatário ou proprietário
+            </span>
+          </div>
+          {casosRetornosPrometidos.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {casosRetornosPrometidos.map(renderCasoCard)}
+            </div>
+          ) : (
+            <Card className="p-8 text-center text-xs text-muted-foreground border-dashed">
+              Nenhum retorno prometido aguardando execução.
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* 5. Aguardando Terceiros */}
+        <TabsContent value="terceiros" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <Users className="w-4 h-4 text-purple-500" /> Aguardando Retorno de Terceiros
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              Aguardar terceiro não encerra o acompanhamento: faça cobrança ativa
+            </span>
+          </div>
+          {casosAguardandoTerceiros.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {casosAguardandoTerceiros.map(renderCasoCard)}
+            </div>
+          ) : (
+            <Card className="p-8 text-center text-xs text-muted-foreground border-dashed">
+              Nenhum caso aguardando terceiros no momento.
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* 6. Próximos Vencimentos */}
+        <TabsContent value="proximos" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-emerald-600" /> Próximos Vencimentos (Próximos 3
+              Dias)
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              Planejamento preventivo para evitar atrasos
+            </span>
+          </div>
+          {casosProximosVencimentos.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {casosProximosVencimentos.map(renderCasoCard)}
+            </div>
+          ) : (
+            <Card className="p-8 text-center text-xs text-muted-foreground border-dashed">
+              Nenhum caso com vencimento para os próximos 3 dias.
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialog Detalhe do Caso */}
+      <CasoDetailDialog caso={selectedCaso} open={isDetailOpen} onOpenChange={setIsDetailOpen} />
     </div>
   )
 }
+
+export default MeuDia

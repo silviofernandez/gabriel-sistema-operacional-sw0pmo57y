@@ -191,10 +191,10 @@ export function AppSidebar() {
             <Home className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-lg leading-tight tracking-tight">AlugAI</span>
-            <span className="text-[10px] text-muted-foreground leading-tight tracking-widest uppercase">
-              Gestão Inteligente
-            </span>
+            <span className="font-bold text-lg leading-tight tracking-tight">Gabriel</span>
+            <span className="text-[10px] text-primary uppercase tracking-widest font-semibold">
+              Central & Processos
+            </span>{' '}
           </div>
         </div>
       </SidebarHeader>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T14:09:14.376Z",
+  "generatedAt": "2026-10-23T19:36:20.866Z",
   "collections": [
     {
       "name": "users",
@@ -883,6 +883,819 @@
         "CREATE INDEX idx_metas_etapa ON metas_premios (etapa_id)",
         "CREATE INDEX idx_metas_datas ON metas_premios (data_inicio, data_fim)"
       ]
+    },
+    {
+      "name": "modelos_processos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["rascunho", "publicado", "arquivado"]
+        },
+        {
+          "name": "versao_atual",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fases",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "configuracao_sla",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "publicado_em",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_mod_proc_cod ON modelos_processos (codigo)",
+        "CREATE INDEX idx_mod_proc_status ON modelos_processos (status)"
+      ]
+    },
+    {
+      "name": "versoes_processos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "modelo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "versao",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "snapshot",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nota_versao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "publicado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_ver_proc_mod ON versoes_processos (modelo_id, versao)"]
+    },
+    {
+      "name": "casos_processos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "protocolo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "modelo_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "versao_modelo",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "unidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Jaú", "Pederneiras", "Lençóis Paulista"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Novo",
+            "Em atendimento",
+            "Aguardando cliente",
+            "Aguardando proprietário",
+            "Aguardando prestador",
+            "Aguardando aprovação interna",
+            "Resolvido",
+            "Cancelado",
+            "Reaberto"
+          ]
+        },
+        {
+          "name": "prioridade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Baixa", "Média", "Alta", "Urgente"]
+        },
+        {
+          "name": "justificativa_prioridade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fase_atual_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fase_atual_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solicitante_nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "solicitante_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solicitante_telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "canal_origem",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["WhatsApp", "Site", "Telefone", "Balcão", "E-mail", "Interno"]
+        },
+        {
+          "name": "cliente_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imovel_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imovel_titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contrato_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "equipe",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "proxima_acao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_abertura",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_primeira_resposta",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_primeira_resposta_humana",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_resolucao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_prometido_cliente",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_ultimo_retorno_cliente",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_pausa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_cancelamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_reabertura",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "caso_origem_protocolo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "casos_relacionados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_formulario",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bloqueios_pendentes",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico_etapas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_casos_proc_proto ON casos_processos (protocolo)",
+        "CREATE INDEX idx_casos_proc_status ON casos_processos (status)",
+        "CREATE INDEX idx_casos_proc_unidade ON casos_processos (unidade)",
+        "CREATE INDEX idx_casos_proc_resp ON casos_processos (responsavel_id)"
+      ]
+    },
+    {
+      "name": "atividades_casos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "caso_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "caso_protocolo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "fase_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Humana",
+            "Automação por regra",
+            "IA",
+            "Aprovação",
+            "Formulário",
+            "Aguardar evento externo"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Pendente",
+            "Em Andamento",
+            "Aguardando aprovação",
+            "Aguardando terceiros",
+            "Concluída",
+            "Recusada",
+            "Atrasada"
+          ]
+        },
+        {
+          "name": "responsavel_tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "funcao_responsavel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "substituto_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_conclusao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "depende_de_atividades",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_paralela",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "condicoes_conclusao",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documentos_obrigatorios",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documentos_anexados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "formulario_dados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aprovado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parecer_aprovacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_recusa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "etapa_retorno_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ai_config_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ativ_caso ON atividades_casos (caso_id)",
+        "CREATE INDEX idx_ativ_resp ON atividades_casos (responsavel_id, status)",
+        "CREATE INDEX idx_ativ_proto ON atividades_casos (caso_protocolo)"
+      ]
+    },
+    {
+      "name": "comentarios_casos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "caso_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "caso_protocolo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "visibilidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["interno", "externo_cliente"]
+        },
+        {
+          "name": "autor_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "autor_nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "mensagem",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "anexos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_coment_caso ON comentarios_casos (caso_id, created DESC)"]
+    },
+    {
+      "name": "configuracoes_expediente",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "unidade",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "fuso_horario",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "dias_uteis",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "hora_inicio",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "hora_fim",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "hora_almoco_inicio",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "hora_almoco_fim",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "feriados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sla_primeira_resposta_horas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "permite_plantao_emergencia",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_conf_exp_unidade ON configuracoes_expediente (unidade)"]
     }
   ]
 }
