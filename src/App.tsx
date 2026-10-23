@@ -36,6 +36,7 @@ import ConstrutorProcessos from './pages/ConstrutorProcessos'
 import PainelGestor from './pages/PainelGestor'
 import { PipelineAccessProvider } from './stores/usePipelineAccess'
 import { ProcessosProvider } from './stores/useProcessosStore'
+import { EmpresaProvider } from './stores/useEmpresaStore'
 import { RestrictedAccessModal } from './components/pipeline/RestrictedAccessModal'
 
 const App = () => (
@@ -44,46 +45,48 @@ const App = () => (
       <AuthProvider>
         <PipelineAccessProvider>
           <ProcessosProvider>
-            <DataProvider>
-              <GoalProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <RestrictedAccessModal />
-                  <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/onboarding" element={<Onboarding />} />
-                    <Route path="/feedback" element={<Feedback />} />
-                    <Route element={<Layout />}>
-                      <Route path="/" element={<MeuDia />} />
-                      <Route path="/meu-dia" element={<MeuDia />} />
-                      <Route path="/atendimento" element={<CentralAtendimento />} />
-                      <Route path="/processos" element={<CentralAtendimento />} />
-                      <Route path="/construtor-processos" element={<ConstrutorProcessos />} />
-                      <Route path="/painel-gestor" element={<PainelGestor />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/tarefas" element={<Tarefas />} />
-                      <Route path="/kanban" element={<Kanban />} />
-                      <Route path="/clientes" element={<Clientes />} />
-                      <Route path="/contratos" element={<Contratos />} />
-                      <Route path="/imoveis" element={<Imoveis />} />
-                      <Route path="/vistorias" element={<Vistorias />} />
-                      <Route path="/manutencoes" element={<Manutencoes />} />
-                      <Route path="/concierge" element={<Concierge />} />
-                      <Route path="/renovacoes" element={<Renovacoes />} />
-                      <Route path="/desocupacoes" element={<Desocupacoes />} />
-                      <Route path="/financeiro" element={<Financeiro />} />
-                      <Route path="/relatorios" element={<Relatorios />} />
-                      <Route path="/auditoria" element={<Auditoria />} />
-                      <Route path="/desempenho-equipe" element={<DesempenhoEquipe />} />
-                      <Route path="/performance" element={<Performance />} />
-                      <Route path="/configuracoes" element={<Configuracoes />} />
-                    </Route>
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </TooltipProvider>
-              </GoalProvider>
-            </DataProvider>
+            <EmpresaProvider>
+              <DataProvider>
+                <GoalProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Sonner />
+                    <RestrictedAccessModal />
+                    <Routes>
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/onboarding" element={<Onboarding />} />
+                      <Route path="/feedback" element={<Feedback />} />
+                      <Route element={<Layout />}>
+                        <Route path="/" element={<MeuDia />} />
+                        <Route path="/meu-dia" element={<MeuDia />} />
+                        <Route path="/atendimento" element={<CentralAtendimento />} />
+                        <Route path="/processos" element={<CentralAtendimento />} />
+                        <Route path="/construtor-processos" element={<ConstrutorProcessos />} />
+                        <Route path="/painel-gestor" element={<PainelGestor />} />
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/tarefas" element={<Tarefas />} />
+                        <Route path="/kanban" element={<Kanban />} />
+                        <Route path="/clientes" element={<Clientes />} />
+                        <Route path="/contratos" element={<Contratos />} />
+                        <Route path="/imoveis" element={<Imoveis />} />
+                        <Route path="/vistorias" element={<Vistorias />} />
+                        <Route path="/manutencoes" element={<Manutencoes />} />
+                        <Route path="/concierge" element={<Concierge />} />
+                        <Route path="/renovacoes" element={<Renovacoes />} />
+                        <Route path="/desocupacoes" element={<Desocupacoes />} />
+                        <Route path="/financeiro" element={<Financeiro />} />
+                        <Route path="/relatorios" element={<Relatorios />} />
+                        <Route path="/auditoria" element={<Auditoria />} />
+                        <Route path="/desempenho-equipe" element={<DesempenhoEquipe />} />
+                        <Route path="/performance" element={<Performance />} />
+                        <Route path="/configuracoes" element={<Configuracoes />} />
+                      </Route>
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </TooltipProvider>
+                </GoalProvider>
+              </DataProvider>
+            </EmpresaProvider>
           </ProcessosProvider>
         </PipelineAccessProvider>
       </AuthProvider>

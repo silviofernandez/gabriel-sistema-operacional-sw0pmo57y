@@ -25,7 +25,7 @@ interface ProcessosContextType {
   publicarModelo: (
     modeloId: string,
     notaVersao: string,
-  ) => Promise<{ sucesso: boolean; erro?: string }>
+  ) => Promise<{ sucesso: boolean; novaVersao?: number; erro?: string }>
   duplicarModelo: (modeloId: string) => Promise<ModeloProcesso | null>
   fetchVersoes: (modeloId: string) => Promise<VersaoProcessoSnapshot[]>
 
@@ -154,7 +154,10 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Publicar modelo com snapshot imutável
   const publicarModelo = useCallback(
-    async (modeloId: string, notaVersao: string) => {
+    async (
+      modeloId: string,
+      notaVersao: string,
+    ): Promise<{ sucesso: boolean; novaVersao?: number; erro?: string }> => {
       const modelo = modelos.find((m) => m.id === modeloId)
       if (!modelo) return { sucesso: false, erro: 'Modelo não encontrado' }
 

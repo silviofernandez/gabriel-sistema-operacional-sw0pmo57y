@@ -27,9 +27,11 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import useAuthStore, { UserProfileLevel } from '@/stores/useAuthStore'
 import useDataStore from '@/stores/useDataStore'
 import usePipelineAccess from '@/stores/usePipelineAccess'
+import { useEmpresa } from '@/stores/useEmpresaStore'
 import { Badge } from '@/components/ui/badge'
 
 export function AppHeader() {
+  const { logoUrl } = useEmpresa()
   const { user, profileLevel, setProfileLevel, logout, switchUser } = useAuthStore()
   const { db } = useDataStore()
   const { stages, assignedStageIds, temporaryStageIds, myActiveCoverage, notifications } =
@@ -87,6 +89,16 @@ export function AppHeader() {
     <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 z-10 sticky top-0 gap-3">
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <SidebarTrigger />
+
+        {logoUrl && (
+          <div className="hidden sm:flex items-center h-8 max-w-[120px] overflow-hidden">
+            <img
+              src={logoUrl}
+              alt="Logo Gabriel"
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+        )}
 
         {/* Barra superior de status de etapas do colaborador */}
         <div className="hidden lg:flex items-center gap-2 overflow-hidden text-xs">

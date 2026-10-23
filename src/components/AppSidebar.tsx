@@ -20,7 +20,12 @@ import {
   ShieldAlert,
   Award,
   Lock,
+  Headphones,
+  Workflow,
+  Compass,
+  Gauge,
 } from 'lucide-react'
+import { useEmpresa } from '@/stores/useEmpresaStore'
 import {
   Sidebar,
   SidebarContent,
@@ -54,12 +59,41 @@ const navItems: {
   levels: UserProfileLevel[]
   stageId?: string
 }[] = [
-  { title: 'Painel', url: '/', icon: LayoutDashboard, levels: ['Diretor', 'Gestor'] },
   {
     title: 'Meu Dia',
     url: '/meu-dia',
     icon: Sun,
     levels: ['Diretor', 'Gestor', 'Colaborador'],
+  },
+  {
+    title: 'Central de Atendimento',
+    url: '/atendimento',
+    icon: Headphones,
+    levels: ['Diretor', 'Gestor', 'Colaborador'],
+  },
+  {
+    title: 'Processos & Casos',
+    url: '/processos',
+    icon: Compass,
+    levels: ['Diretor', 'Gestor', 'Colaborador'],
+  },
+  {
+    title: 'Construtor de Processos',
+    url: '/construtor-processos',
+    icon: Workflow,
+    levels: ['Diretor', 'Gestor'],
+  },
+  {
+    title: 'Painel do Gestor',
+    url: '/painel-gestor',
+    icon: Gauge,
+    levels: ['Diretor', 'Gestor'],
+  },
+  {
+    title: 'Painel Geral',
+    url: '/dashboard',
+    icon: LayoutDashboard,
+    levels: ['Diretor', 'Gestor'],
   },
   {
     title: 'Tarefas & OS',
@@ -162,6 +196,7 @@ export function AppSidebar() {
   const { can, isAdmin } = usePermissions()
   const { stages, canOperateStage, canReadAdjacentStage, openRestrictedModal, logAuditAction } =
     usePipelineAccess()
+  const { logoUrl, config } = useEmpresa()
 
   const isColaborador = profileLevel === 'Colaborador'
 
@@ -186,15 +221,23 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="h-20 flex flex-col justify-center border-b px-4 bg-muted/30">
-        <div className="flex items-center gap-2 w-full text-primary">
-          <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-sm">
-            <Home className="h-5 w-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-lg leading-tight tracking-tight">Gabriel</span>
-            <span className="text-[10px] text-primary uppercase tracking-widest font-semibold">
+        <div className="flex items-center gap-2.5 w-full text-primary">
+          {logoUrl ? (
+            <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-background border p-1 shadow-xs overflow-hidden shrink-0">
+              <img src={logoUrl} alt="Gabriel" className="max-h-full max-w-full object-contain" />
+            </div>
+          ) : (
+            <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-sm shrink-0">
+              <Home className="h-5 w-5" />
+            </div>
+          )}
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-lg leading-tight tracking-tight truncate">
+              {config?.nome_fantasia || 'Gabriel'}
+            </span>
+            <span className="text-[10px] text-primary uppercase tracking-widest font-semibold truncate">
               Central & Processos
-            </span>{' '}
+            </span>
           </div>
         </div>
       </SidebarHeader>
