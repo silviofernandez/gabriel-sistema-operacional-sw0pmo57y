@@ -20,7 +20,10 @@ import {
   GripVertical,
   ChevronDown,
   ChevronUp,
+  Zap,
+  User,
 } from 'lucide-react'
+import { FormBuilder } from '@/components/processos/FormBuilder'
 import { useProcessos } from '@/stores/useProcessosStore'
 import {
   ModeloProcesso,
@@ -84,13 +87,18 @@ export default function ConstrutorProcessos() {
     titulo: '',
     descricao: '',
     tipo: 'Humana',
+    modo_execucao: 'humana',
     funcao_responsavel: 'Atendimento',
     prazo_horas_uteis: 4,
     obrigatoria: true,
     is_paralela: false,
     documentos_obrigatorios: [],
+    formulario_campos: [],
+    ai_instrucoes: '',
+    integracao_alvo: 'nenhuma',
   })
   const [docInput, setDocInput] = useState('')
+  const [showFormBuilderInModal, setShowFormBuilderInModal] = useState(false)
 
   // Simulador interativo
   const [simulationState, setSimulationState] = useState<{
@@ -206,12 +214,17 @@ export default function ConstrutorProcessos() {
       titulo: '',
       descricao: '',
       tipo: 'Humana',
+      modo_execucao: 'humana',
       funcao_responsavel: 'Atendimento',
       prazo_horas_uteis: 4,
       obrigatoria: true,
       is_paralela: false,
       documentos_obrigatorios: [],
+      formulario_campos: [],
+      ai_instrucoes: '',
+      integracao_alvo: 'nenhuma',
     })
+    setShowFormBuilderInModal(false)
     setDocInput('')
     setIsActivityModalOpen(true)
   }
@@ -227,16 +240,24 @@ export default function ConstrutorProcessos() {
       return
     }
 
+    const modoCalculado =
+      activityForm.modo_execucao ||
+      (activityForm.tipo === 'Automação por regra' ? 'automatica' : 'humana')
+
     const novaAtiv: AtividadeModeloDef = {
       id: `ativ_${Date.now()}`,
       titulo: activityForm.titulo,
       descricao: activityForm.descricao || '',
       tipo: (activityForm.tipo as TipoAtividade) || 'Humana',
+      modo_execucao: modoCalculado,
       funcao_responsavel: (activityForm.funcao_responsavel as GabrielRole) || 'Atendimento',
       prazo_horas_uteis: Number(activityForm.prazo_horas_uteis) || 4,
       obrigatoria: activityForm.obrigatoria !== false,
       is_paralela: !!activityForm.is_paralela,
       documentos_obrigatorios: activityForm.documentos_obrigatorios || [],
+      formulario_campos: activityForm.formulario_campos || [],
+      ai_instrucoes: activityForm.ai_instrucoes || undefined,
+      integracao_alvo: activityForm.integracao_alvo || 'nenhuma',
       etapa_retorno_id: activityForm.etapa_retorno_id || undefined,
       ai_config_status: activityForm.tipo === 'IA' ? 'Aguardando configuração' : undefined,
     }
@@ -715,7 +736,28 @@ export default function ConstrutorProcessos() {
                                     <span className="font-semibold text-sm text-foreground">
                                       {ativ.titulo}
                                     </span>
-                                    <Badge variant="outline" className="text-[10px] font-mono">
+                                    {ativ.modo_execucao === 'automatica' ||
+                                    ativ.tipo === 'Automação por regra' ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] font-medium bg-emerald-500/10 text-emerald-800 border-emerald-500/30 flex items-center gap-1"
+                                      >
+                                        <Zap className="w-2.5 h-2.5 text-emerald-600" /> ⚡
+                                        Automática
+                                      </Badge>
+                                    ) : (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] font-medium bg-amber-500/10 text-amber-800 border-amber-500/30 flex items-center gap-1"
+                                      >
+                                        <User className="w-2.5 h-2.5 text-amber-600" /> 👤 Ação
+                                        humana
+                                      </Badge>
+                                    )}
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] font-mono text-muted-foreground"
+                                    >
                                       {ativ.tipo}
                                     </Badge>
                                     {ativ.is_paralela && (
@@ -1078,7 +1120,7 @@ export default function ConstrutorProcessos() {
                   <SelectContent>
                     <SelectItem value="Humana">Humana</SelectItem>
                     <SelectItem value="Automação por regra">Automação por regra</SelectItem>
-                    <SelectItem value="IA">IA (Aguardando configuração)</SelectItem>
+                    <SelectItem value="IA">IA (Gabriel Copilot)</SelectItem>
                     <SelectItem value="Aprovação">Aprovação (Alçada)</SelectItem>
                     <SelectItem value="Formulário">Formulário de Entrada</SelectItem>
                     <SelectItem value="Aguardar evento externo">Aguardar evento externo</SelectItem>
@@ -1086,6 +1128,26 @@ export default function ConstrutorProcessos() {
                 </Select>
               </div>
 
+              <div className="space-y-1.5">
+                <Label className="text-xs">Modo de Operação (Superlógica)</Label>
+                <Select
+                  value={activityForm.modo_execucao || 'humana'}
+                  onValueChange={(val: any) =>
+                    setActivityForm({ ...activityForm, modo_execucao: val })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="automatica">⚡ Automática</SelectItem>
+                    <SelectItem value="humana">👤 Ação humana</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Função Responsável</Label>
                 <Select
@@ -1141,6 +1203,37 @@ export default function ConstrutorProcessos() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Formulário Builder Integrado */}
+            <div className="space-y-2 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">
+                  Formulário Vinculado a esta Atividade
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setShowFormBuilderInModal(!showFormBuilderInModal)}
+                >
+                  {showFormBuilderInModal
+                    ? 'Recolher Formulário'
+                    : `Configurar Campos (${activityForm.formulario_campos?.length || 0})`}
+                </Button>
+              </div>
+
+              {showFormBuilderInModal && (
+                <div className="pt-1">
+                  <FormBuilder
+                    campos={activityForm.formulario_campos || []}
+                    onChange={(campos) =>
+                      setActivityForm({ ...activityForm, formulario_campos: campos })
+                    }
+                  />
+                </div>
+              )}
             </div>
 
             {/* Documentos Obrigatórios */}

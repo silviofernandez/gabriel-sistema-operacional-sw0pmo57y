@@ -187,7 +187,12 @@ const navItems: {
     icon: Activity,
     levels: ['Diretor', 'Gestor'],
   },
-  { title: 'Painel Admin', url: '/configuracoes', icon: Settings, levels: ['Diretor', 'Gestor'] },
+  {
+    title: 'Painel Admin & IA',
+    url: '/configuracoes',
+    icon: Settings,
+    levels: ['Diretor', 'Gestor'],
+  },
 ]
 
 export function AppSidebar() {

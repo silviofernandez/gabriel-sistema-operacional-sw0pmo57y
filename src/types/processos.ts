@@ -24,6 +24,8 @@ export type CasoPrioridade = 'Baixa' | 'Média' | 'Alta' | 'Urgente'
 
 export type CanalOrigem = 'WhatsApp' | 'Site' | 'Telefone' | 'Balcão' | 'E-mail' | 'Interno'
 
+export type ModoExecucaoAtividade = 'automatica' | 'humana'
+
 export type TipoAtividade =
   | 'Humana'
   | 'Automação por regra'
@@ -73,6 +75,7 @@ export interface AtividadeModeloDef {
   titulo: string
   descricao?: string
   tipo: TipoAtividade
+  modo_execucao?: ModoExecucaoAtividade // 'automatica' | 'humana' (como nos cards Superlógica)
   funcao_responsavel?: GabrielRole | 'Qualquer'
   responsavel_id?: string
   prazo_horas_uteis: number
@@ -83,6 +86,13 @@ export interface AtividadeModeloDef {
   formulario_campos?: CampoFormularioDef[]
   etapa_retorno_id?: string
   ai_config_status?: string
+  ai_instrucoes?: string
+  integracao_alvo?:
+    | 'whatsapp'
+    | 'erp_superlogica'
+    | 'assinatura_eletronica'
+    | 'score_cpf'
+    | 'nenhuma'
 }
 
 export interface FaseModeloDef {
@@ -198,6 +208,7 @@ export interface AtividadeCaso {
   titulo: string
   descricao?: string
   tipo: TipoAtividade
+  modo_execucao?: ModoExecucaoAtividade // 'automatica' | 'humana'
   status: AtividadeStatus
   responsavel_tipo?: 'pessoa' | 'equipe' | 'funcao' | 'sistema'
   responsavel_id?: string
@@ -211,12 +222,26 @@ export interface AtividadeCaso {
   condicoes_conclusao?: Record<string, any>
   documentos_obrigatorios?: string[]
   documentos_anexados?: { nome: string; url?: string; data: string }[]
+  formulario_campos?: CampoFormularioDef[]
   formulario_dados?: Record<string, any>
   aprovado_por?: string
   parecer_aprovacao?: string
   motivo_recusa?: string
   etapa_retorno_id?: string
   ai_config_status?: string
+  ai_instrucoes?: string
+  integracao_alvo?:
+    | 'whatsapp'
+    | 'erp_superlogica'
+    | 'assinatura_eletronica'
+    | 'score_cpf'
+    | 'nenhuma'
+  integracao_status?:
+    | 'Configurada e disponível'
+    | 'Aguardando configuração'
+    | 'Em execução'
+    | 'Confirmada'
+    | 'Com falha'
   is_demo?: boolean
   created?: string
   updated?: string

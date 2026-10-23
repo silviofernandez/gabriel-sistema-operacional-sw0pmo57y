@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-23T20:00:06.629Z",
+  "generatedAt": "2026-10-23T20:20:34.846Z",
   "collections": [
     {
       "name": "users",
@@ -1758,6 +1758,101 @@
         },
         {
           "name": "cor_primaria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "execucoes_automacoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "caso_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "caso_protocolo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "atividade_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_acao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Configurada e disponível",
+            "Aguardando configuração",
+            "Em execução",
+            "Confirmada",
+            "Com falha"
+          ]
+        },
+        {
+          "name": "mensagem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tentativas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "executado_em",
           "type": "text",
           "required": false,
           "system": false

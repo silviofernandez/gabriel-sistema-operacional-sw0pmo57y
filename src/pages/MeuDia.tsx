@@ -12,6 +12,7 @@ import {
   Filter,
   Users,
   Briefcase,
+  Zap,
 } from 'lucide-react'
 import { useProcessos } from '@/stores/useProcessosStore'
 import useAuthStore from '@/stores/useAuthStore'
@@ -113,18 +114,26 @@ export function MeuDia() {
               {c.unidade}
             </Badge>
           </div>
-          <Badge
-            className={cn(
-              'text-[10px] py-0',
-              c.prioridade === 'Urgente'
-                ? 'bg-destructive text-destructive-foreground'
-                : c.prioridade === 'Alta'
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-muted text-muted-foreground',
-            )}
-          >
-            {c.prioridade}
-          </Badge>
+          <div className="flex items-center gap-1">
+            <span
+              title="Esteira com automações ativas"
+              className="text-[9px] text-emerald-700 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20 font-bold"
+            >
+              ⚡
+            </span>
+            <Badge
+              className={cn(
+                'text-[10px] py-0',
+                c.prioridade === 'Urgente'
+                  ? 'bg-destructive text-destructive-foreground'
+                  : c.prioridade === 'Alta'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-muted text-muted-foreground',
+              )}
+            >
+              {c.prioridade}
+            </Badge>
+          </div>
         </div>
 
         <h4 className="font-semibold text-sm text-foreground line-clamp-2 leading-snug">

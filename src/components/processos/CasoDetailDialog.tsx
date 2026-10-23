@@ -16,7 +16,9 @@ import {
   Paperclip,
   Send,
   Lock,
+  Zap,
 } from 'lucide-react'
+import { FormRenderer } from '@/components/processos/FormRenderer'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -58,8 +60,15 @@ export function CasoDetailDialog({ caso, open, onOpenChange }: CasoDetailDialogP
     comentariosCaso,
     carregarComentariosCaso,
     adicionarComentario,
+    executarAutomacaoServidor,
   } = useProcessos()
   const { toast } = useToast()
+
+  const [formularioValores, setFormularioValores] = useState<{
+    [atvId: string]: Record<string, any>
+  }>({})
+  const [docAnexoInput, setDocAnexoInput] = useState<{ [atvId: string]: string }>({})
+  const [executandoAutomacaoId, setExecutandoAutomacaoId] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<'fluxo' | 'atividades' | 'mensagens' | 'historico'>(
     'fluxo',
@@ -183,18 +192,72 @@ export function CasoDetailDialog({ caso, open, onOpenChange }: CasoDetailDialogP
 
   // Concluir Atividade Individual
   const handleConcluirAtividade = async (ativ: AtividadeCaso) => {
-    const res = await concluirAtividade(ativ.id)
+    const dadosForm = formularioValores[ativ.id] || ativ.formulario_dados || {}
+    const camposForm = ativ.formulario_campos || []
+
+    // Validação de campos obrigatórios
+    const faltantes = camposForm
+      .filter(
+        (c) => c.obrigatorio && (!dadosForm[c.nome] || String(dadosForm[c.nome]).trim() === ''),
+      )
+      .map((c) => c.label)
+
+    if (faltantes.length > 0) {
+      toast({
+        title: 'Campos Obrigatórios Pendentes',
+        description: `Preencha: ${faltantes.join(', ')}`,
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const docs = ativ.documentos_anexados || []
+    if (docAnexoInput[ativ.id]?.trim()) {
+      docs.push({
+        nome: docAnexoInput[ativ.id].trim(),
+        data: new Date().toISOString(),
+      })
+    }
+
+    const res = await concluirAtividade(ativ.id, dadosForm, docs)
     if (res.sucesso) {
       toast({
         title: 'Atividade Concluída',
         description: `"${ativ.titulo}" concluída com sucesso.`,
       })
+      setDocAnexoInput((prev) => ({ ...prev, [ativ.id]: '' }))
     } else {
       toast({
         title: 'Bloqueio de Requisito',
         description: res.erro,
         variant: 'destructive',
       })
+    }
+  }
+
+  const handleDispararAutomacao = async (ativ: AtividadeCaso) => {
+    if (!caso) return
+    setExecutandoAutomacaoId(ativ.id)
+    try {
+      const res = await executarAutomacaoServidor({
+        caso_id: caso.id,
+        caso_protocolo: caso.protocolo,
+        atividade_id: ativ.id,
+        tipo_acao: ativ.integracao_alvo || 'envio_whatsapp',
+        payload: {
+          solicitante: caso.solicitante_nome,
+          telefone: caso.solicitante_telefone,
+          titulo: ativ.titulo,
+        },
+      })
+
+      toast({
+        title: `Status: ${res.status}`,
+        description: res.mensagem,
+        variant: res.status === 'Com falha' ? 'destructive' : 'default',
+      })
+    } finally {
+      setExecutandoAutomacaoId(null)
     }
   }
 
@@ -494,7 +557,31 @@ export function CasoDetailDialog({ caso, open, onOpenChange }: CasoDetailDialogP
                             >
                               {ativ.titulo}
                             </span>
-                            <Badge variant="outline" className="text-[10px] font-mono">
+                            {ativ.modo_execucao === 'automatica' ||
+                            ativ.tipo === 'Automação por regra' ? (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-emerald-500/10 text-emerald-800 border-emerald-500/30 flex items-center gap-1 font-semibold"
+                              >
+                                <Zap className="w-3 h-3 text-emerald-600" /> ⚡ Automática
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-amber-500/10 text-amber-800 border-amber-500/30 flex items-center gap-1 font-semibold"
+                              >
+                                <User className="w-3 h-3 text-amber-600" /> 👤 Ação humana
+                              </Badge>
+                            )}
+                            {ativ.integracao_status && (
+                              <Badge variant="outline" className="text-[10px] font-mono">
+                                {ativ.integracao_status}
+                              </Badge>
+                            )}
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-mono text-muted-foreground"
+                            >
                               {ativ.tipo}
                             </Badge>
                             {ativ.is_paralela && (
@@ -514,10 +601,58 @@ export function CasoDetailDialog({ caso, open, onOpenChange }: CasoDetailDialogP
                           {ativ.descricao && (
                             <p className="text-xs text-muted-foreground mt-0.5">{ativ.descricao}</p>
                           )}
+
+                          {/* Bloco de Disparo de Automação Superlógica */}
+                          {(ativ.modo_execucao === 'automatica' ||
+                            ativ.tipo === 'Automação por regra') &&
+                            !isDone && (
+                              <div className="mt-2 p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <span className="text-[11px] text-emerald-950 font-medium">
+                                  Automação do Servidor ({ativ.integracao_alvo || 'Interna'}):{' '}
+                                  <strong>
+                                    {ativ.integracao_status || 'Aguardando configuração'}
+                                  </strong>
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs border-emerald-500/30 text-emerald-800 gap-1 self-start sm:self-auto"
+                                  disabled={executandoAutomacaoId === ativ.id}
+                                  onClick={() => handleDispararAutomacao(ativ)}
+                                >
+                                  <Zap className="w-3 h-3 text-emerald-600" />
+                                  {executandoAutomacaoId === ativ.id
+                                    ? 'Processando...'
+                                    : 'Executar no Servidor'}
+                                </Button>
+                              </div>
+                            )}
+
+                          {/* Formulário Renderizado */}
+                          {ativ.formulario_campos && ativ.formulario_campos.length > 0 && (
+                            <div className="mt-2.5 p-3 rounded-lg border bg-background space-y-2">
+                              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                                <FileText className="w-3.5 h-3.5 text-primary" /> Formulário
+                                Obrigatório da Atividade
+                              </span>
+                              <FormRenderer
+                                campos={ativ.formulario_campos}
+                                valores={formularioValores[ativ.id] || ativ.formulario_dados || {}}
+                                onChange={(val) =>
+                                  setFormularioValores({
+                                    ...formularioValores,
+                                    [ativ.id]: val,
+                                  })
+                                }
+                                somenteLeitura={isDone}
+                              />
+                            </div>
+                          )}
+
                           {ativ.documentos_obrigatorios &&
                             ativ.documentos_obrigatorios.length > 0 && (
-                              <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-                                <span className="font-semibold">Exige:</span>
+                              <div className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                                <span className="font-semibold">Documentos Exigidos:</span>
                                 <span>{ativ.documentos_obrigatorios.join(', ')}</span>
                               </div>
                             )}

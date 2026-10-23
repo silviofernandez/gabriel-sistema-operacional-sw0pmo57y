@@ -79,6 +79,15 @@ interface ProcessosContextType {
   // Expediente
   configExpediente: ConfiguracaoExpediente[]
   loading: boolean
+
+  // Automação real no servidor
+  executarAutomacaoServidor: (params: {
+    caso_id: string
+    caso_protocolo: string
+    atividade_id?: string
+    tipo_acao: string
+    payload?: any
+  }) => Promise<{ sucesso: boolean; status: string; mensagem: string }>
 }
 
 const ProcessosContext = createContext<ProcessosContextType | undefined>(undefined)
@@ -228,19 +237,27 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const modelo = modelos.find((m) => m.id === dados.modelo_id)
       const primeiraFase = modelo?.fases[0]
 
-      const ativsIniciais = primeiraFase?.atividades.map((a) => ({
-        titulo: a.titulo,
-        descricao: a.descricao,
-        tipo: a.tipo,
-        status: 'Pendente' as const,
-        responsavel_id: dados.responsavel_id,
-        responsavel_nome: dados.responsavel_nome,
-        funcao_responsavel: a.funcao_responsavel || 'Atendimento',
-        prazo: adicionarHorasUteis(now, a.prazo_horas_uteis || 4, confUnidade).toISOString(),
-        is_paralela: !!a.is_paralela,
-        documentos_obrigatorios: a.documentos_obrigatorios,
-        ai_config_status: a.tipo === 'IA' ? 'Aguardando configuração' : undefined,
-      }))
+      const ativsIniciais = primeiraFase?.atividades.map((a) => {
+        const isAuto = a.modo_execucao === 'automatica' || a.tipo === 'Automação por regra'
+        return {
+          titulo: a.titulo,
+          descricao: a.descricao,
+          tipo: a.tipo,
+          modo_execucao: a.modo_execucao || (isAuto ? 'automatica' : 'humana'),
+          status: 'Pendente' as const,
+          responsavel_id: dados.responsavel_id,
+          responsavel_nome: dados.responsavel_nome,
+          funcao_responsavel: a.funcao_responsavel || 'Atendimento',
+          prazo: adicionarHorasUteis(now, a.prazo_horas_uteis || 4, confUnidade).toISOString(),
+          is_paralela: !!a.is_paralela,
+          documentos_obrigatorios: a.documentos_obrigatorios,
+          formulario_campos: a.formulario_campos,
+          ai_instrucoes: a.ai_instrucoes,
+          integracao_alvo: a.integracao_alvo,
+          integracao_status: isAuto ? 'Aguardando configuração' : undefined,
+          ai_config_status: a.tipo === 'IA' ? 'Aguardando configuração' : undefined,
+        }
+      })
 
       const casoCriado = await processoService.createCaso(
         {
@@ -497,13 +514,17 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const conf =
             configExpediente.find((c) => c.unidade === caso.unidade) || configExpediente[0]
           for (const ativDef of novaFaseDef.atividades) {
-            await processoService.updateAtividade(`nova_${Date.now()}`, {
+            const isAuto =
+              ativDef.modo_execucao === 'automatica' || ativDef.tipo === 'Automação por regra'
+
+            await processoService.updateAtividade(`nova_${Date.now()}_${Math.random()}`, {
               caso_id: caso.id,
               caso_protocolo: caso.protocolo,
               fase_id: proximaFaseId,
               titulo: ativDef.titulo,
               descricao: ativDef.descricao,
               tipo: ativDef.tipo,
+              modo_execucao: ativDef.modo_execucao || (isAuto ? 'automatica' : 'humana'),
               status: 'Pendente',
               responsavel_id: caso.responsavel_id,
               responsavel_nome: caso.responsavel_nome,
@@ -515,6 +536,10 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               ).toISOString(),
               is_paralela: !!ativDef.is_paralela,
               documentos_obrigatorios: ativDef.documentos_obrigatorios,
+              formulario_campos: ativDef.formulario_campos,
+              ai_instrucoes: ativDef.ai_instrucoes,
+              integracao_alvo: ativDef.integracao_alvo,
+              integracao_status: isAuto ? 'Aguardando configuração' : undefined,
               ai_config_status: ativDef.tipo === 'IA' ? 'Aguardando configuração' : undefined,
             } as any)
           }
@@ -667,6 +692,48 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [user.id, user.name, carregarComentariosCaso, atualizarCaso, selectedCaso],
   )
 
+  const executarAutomacaoServidor = useCallback(
+    async (params: {
+      caso_id: string
+      caso_protocolo: string
+      atividade_id?: string
+      tipo_acao: string
+      payload?: any
+    }) => {
+      try {
+        const res = await fetch('/backend/v1/automacoes/executar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token ? `Bearer ${pb.authStore.token}` : '',
+          },
+          body: JSON.stringify(params),
+        })
+        const data = await res.json()
+        if (params.atividade_id) {
+          await processoService.updateAtividade(params.atividade_id, {
+            integracao_status: data.status || 'Aguardando configuração',
+          })
+          if (selectedCaso?.id === params.caso_id) {
+            await carregarAtividadesCaso(params.caso_id)
+          }
+        }
+        return {
+          sucesso: true,
+          status: (data.status as string) || 'Aguardando configuração',
+          mensagem: data.mensagem || 'Processado no servidor.',
+        }
+      } catch (err: any) {
+        return {
+          sucesso: false,
+          status: 'Com falha',
+          mensagem: err.message || 'Falha ao acionar automação.',
+        }
+      }
+    },
+    [selectedCaso?.id, carregarAtividadesCaso],
+  )
+
   const value = useMemo(
     () => ({
       modelos,
@@ -700,6 +767,7 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       adicionarComentario,
       configExpediente,
       loading,
+      executarAutomacaoServidor,
     }),
     [
       modelos,
@@ -730,6 +798,7 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       adicionarComentario,
       configExpediente,
       loading,
+      executarAutomacaoServidor,
     ],
   )
 

@@ -14,6 +14,7 @@ import {
   ChevronRight,
   RotateCcw,
   Sparkles,
+  Zap,
 } from 'lucide-react'
 import { useProcessos } from '@/stores/useProcessosStore'
 import { CasoProcesso, GabrielUnidade } from '@/types/processos'
@@ -357,24 +358,35 @@ export function PainelGestor() {
         </Card>
 
         {/* Consumo de IA & Automações */}
-        <Card className="border bg-card p-4 space-y-2">
+        <Card
+          onClick={() =>
+            abrirDrillDown(
+              'Casos com Automação e IA Ativa',
+              'Processos de Locação e Manutenção com esteiras de automação configuradas.',
+              filteredCasos.filter(
+                (c) => c.modelo_id?.includes('LOC') || c.modelo_id?.includes('MANUT'),
+              ),
+            )
+          }
+          className="cursor-pointer hover:shadow-sm border bg-card p-4 space-y-2"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">
-              Consumo de IA & Automações
+            <span className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1">
+              <Zap className="w-3.5 h-3.5 text-emerald-600" /> Automações & IA (Fase 3)
             </span>
             <Badge
               variant="outline"
-              className="text-[10px] bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30"
+              className="text-[10px] bg-emerald-500/10 text-emerald-800 border-emerald-500/30"
             >
-              Aguardando configuração
+              Nativo Skip Cloud
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            Atividades de inteligência artificial em modo preparatório na Etapa 1 com execução
-            manual alternativa.
+            Monitor de automações (WhatsApp, ERP Superlógica, Assinatura) e Gabriel Copilot
+            integrado.
           </p>
-          <div className="text-[11px] text-muted-foreground font-mono">
-            0 tokens cobrados · Motor nativo
+          <div className="text-[11px] text-primary font-medium flex items-center justify-end gap-1">
+            Ver esteiras automáticas <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </Card>
       </div>

@@ -374,19 +374,27 @@ export default function CentralAtendimento() {
                         <span className="font-mono text-[11px] font-bold text-primary group-hover:underline">
                           {c.protocolo}
                         </span>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-[10px] px-1.5 py-0 font-semibold',
-                            c.prioridade === 'Urgente'
-                              ? 'border-destructive text-destructive bg-destructive/5'
-                              : c.prioridade === 'Alta'
-                                ? 'border-orange-500 text-orange-600 bg-orange-500/5'
-                                : 'text-muted-foreground',
-                          )}
-                        >
-                          {c.prioridade}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <span
+                            title="Processo inteligente com esteira automatizada"
+                            className="text-[9px] text-emerald-700 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20 font-bold"
+                          >
+                            ⚡ Auto
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-[10px] px-1.5 py-0 font-semibold',
+                              c.prioridade === 'Urgente'
+                                ? 'border-destructive text-destructive bg-destructive/5'
+                                : c.prioridade === 'Alta'
+                                  ? 'border-orange-500 text-orange-600 bg-orange-500/5'
+                                  : 'text-muted-foreground',
+                            )}
+                          >
+                            {c.prioridade}
+                          </Badge>
+                        </div>
                       </div>
 
                       <h4 className="text-xs font-semibold text-foreground line-clamp-2 leading-snug">

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Bot, Sparkles, Copy, CheckCircle2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { pb } from '@/lib/pocketbase/client'
 
 interface AIAssistantWidgetProps {
   contextPrompt: string
@@ -14,22 +15,42 @@ export function AIAssistantWidget({ contextPrompt }: AIAssistantWidgetProps) {
   const [isCopied, setIsCopied] = useState(false)
   const { toast } = useToast()
 
-  const generateMessage = () => {
+  const generateMessage = async () => {
     setIsGenerating(true)
-    // Simulate AI delay
-    setTimeout(() => {
-      setMessage(`Olá! Tudo bem? Sou o concierge da AlugAI. 
-
-Analisando a sua jornada atual, vi que precisamos do seu apoio para o seguinte passo: "${contextPrompt}". 
-
-Poderia nos retornar assim que possível para darmos andamento de forma ágil?
-Qualquer dúvida, estou à disposição!`)
-      setIsGenerating(false)
-      toast({
-        title: 'Mensagem Gerada',
-        description: 'A IA gerou uma sugestão baseada no contexto.',
+    try {
+      const data: any = await pb.send('/backend/v1/gabriel-ai/chat', {
+        method: 'POST',
+        body: {
+          message: `Gere uma mensagem acolhedora e formal para o cliente da Gabriel Imobiliária sobre a seguinte etapa: "${contextPrompt}". Indique o que é necessário e se coloque à disposição.`,
+        },
       })
-    }, 1200)
+
+      if (data?.content) {
+        setMessage(data.content)
+        toast({
+          title: 'Mensagem Gerada pelo Gabriel Copilot',
+          description: 'Sugestão redigida pelo agente de IA nativo.',
+        })
+      } else {
+        setMessage(
+          `Olá! Aqui é da equipe da Gabriel Imobiliária.\n\n` +
+          `A respeito do seu atendimento, identificamos que o próximo passo necessário é: "${contextPrompt}".\n\n` +
+          `Poderia nos retornar para darmos andamento com total agilidade? Caso tenha qualquer dúvida, conte conosco!\n\n` +
+          `Gabriel Imobiliária — Atendimento Operacional`
+        )
+        toast({
+          title: 'Sugestão Operacional Padronizada',
+          description: 'Mensagem estruturada conforme padrões da Gabriel.',
+        })
+      }
+    } catch {      setMessage(
+        `Olá! Aqui é da equipe da Gabriel Imobiliária.\n\n` +
+          `Sobre a sua solicitação, precisamos do seu retorno para o passo: "${contextPrompt}".\n\n` +
+          `Qualquer dúvida, estamos à sua inteira disposição!`,
+      )
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const copyToClipboard = () => {
@@ -44,7 +65,7 @@ Qualquer dúvida, estou à disposição!`)
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5 text-primary" />
-          <span className="font-semibold text-primary">AI Concierge</span>
+          <span className="font-semibold text-primary">Gabriel Copilot (IA Nativa)</span>
         </div>
         {!message && (
           <Button
@@ -54,7 +75,7 @@ Qualquer dúvida, estou à disposição!`)
             className="bg-primary/10 text-primary hover:bg-primary/20 border-0"
           >
             <Sparkles className="w-3.5 h-3.5 mr-2" />
-            {isGenerating ? 'Analisando contexto...' : 'Sugerir Mensagem'}
+            {isGenerating ? 'Consultando Gabriel Copilot...' : 'Sugerir Mensagem'}
           </Button>
         )}
       </div>
@@ -64,7 +85,7 @@ Qualquer dúvida, estou à disposição!`)
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            className="min-h-[120px] bg-background resize-none border-primary/20 focus-visible:ring-primary/30"
+            className="min-h-[120px] bg-background resize-none border-primary/20 focus-visible:ring-primary/30 text-xs"
           />
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setMessage('')}>
